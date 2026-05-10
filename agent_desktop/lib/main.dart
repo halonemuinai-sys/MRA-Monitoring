@@ -1,9 +1,5 @@
-import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:window_manager/window_manager.dart';
 import 'package:system_tray/system_tray.dart';
 import 'monitoring_service.dart';
@@ -191,9 +187,9 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.1),
+                      color: Colors.blueAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
                     ),
                     child: const Icon(Icons.security_update_good, size: 50, color: Colors.blueAccent),
                   ),
@@ -205,7 +201,7 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
                   const SizedBox(height: 8),
                   Text(
                     "Professional IT Hardware Monitoring",
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
                   ),
                   const SizedBox(height: 60),
                   
@@ -244,7 +240,7 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
                   const SizedBox(height: 40),
                   Text(
                     "Version 1.0.0",
-                    style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 10),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 10),
                   ),
                 ],
               ),

@@ -82,10 +82,10 @@ export default async function Dashboard() {
                   {/* Storage */}
                   <td className="px-6 py-6">
                     <div className="text-xs font-mono text-white mb-1.5">{asset.storage_free_gb} / {asset.storage_total_gb} GB</div>
-                    <div className="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-24 h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
                       <div 
-                        className={`h-full ${asset.storage_free_gb < 20 ? 'bg-red-500' : 'bg-green-500/50'}`}
-                        style={{ width: `${(asset.storage_free_gb / asset.storage_total_gb) * 100}%` }}
+                        className={`h-full rounded-full ${asset.storage_free_gb < 20 ? 'bg-red-500' : 'bg-blue-500/50'}`}
+                        style={{ '--width': `${(asset.storage_free_gb / asset.storage_total_gb) * 100}%`, width: 'var(--width)' } as React.CSSProperties}
                       ></div>
                     </div>
                   </td>

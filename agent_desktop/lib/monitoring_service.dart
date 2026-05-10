@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class MonitoringService {
@@ -78,7 +79,7 @@ class MonitoringService {
         "timestamp": DateTime.now().toIso8601String()
       };
     } catch (e) {
-      print("Error gathering specs: $e");
+      debugPrint("Error gathering specs: $e");
       return {};
     }
   }
@@ -93,7 +94,7 @@ class MonitoringService {
         body: jsonEncode(payload),
       );
     } catch (e) {
-      print("Sync failed: $e");
+      debugPrint("Sync failed: $e");
     }
   }
 }
