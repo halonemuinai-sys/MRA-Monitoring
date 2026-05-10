@@ -63,8 +63,8 @@ class MonitoringService {
         "bitlocker": (await runPowerShell('Get-BitLockerVolume -MountPoint "C:" | Select-Object -ExpandProperty ProtectionStatus') == "1") ? "Encrypted" : "Unprotected",
       };
 
-      // 6. Battery
-      String batteryWear = await runPowerShell('\$b = Get-CimInstance Win32_Battery | Select-Object -First 1; if (\$b.DesignCapacity -gt 0) { [math]::Round((1 - (\$b.FullChargeCapacity / \$b.DesignCapacity)) * 100, 2) } else { 0 }');
+      // 6. Battery (Using deeper WMI namespace for better accuracy)
+      String batteryWear = await runPowerShell('\$full = (Get-CimInstance -Namespace root/WMI -ClassName BatteryFullChargedCapacity).FullChargedCapacity; \$design = (Get-CimInstance -Namespace root/WMI -ClassName BatteryStaticData).DesignedCapacity; if (\$design -gt 0) { [math]::Round((1 - (\$full / \$design)) * 100, 2) } else { 0 }');
       data["battery"] = { "wearLevel": double.tryParse(batteryWear) ?? 0.0 };
 
       // 7. Public IP
