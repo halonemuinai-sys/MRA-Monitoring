@@ -6,7 +6,6 @@ import 'monitoring_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize window manager
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
@@ -19,8 +18,8 @@ void main() async {
   
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
-    await windowManager.focus();
-    await windowManager.setPreventClose(true); // Mencegah aplikasi benar-benar mati saat di-close
+    await windowManager.setResizable(false);
+    await windowManager.setAsFrameless();
   });
 
   runApp(const MRAAssetMonitor());
@@ -33,35 +32,32 @@ class MRAAssetMonitor extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0A0A0B),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueAccent,
-          brightness: Brightness.dark,
-        ),
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        fontFamily: 'Segoe UI',
       ),
-      home: const InstallerScreen(),
+      home: const MainScreen(),
     );
   }
 }
 
-class InstallerScreen extends StatefulWidget {
-  const InstallerScreen({super.key});
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
   @override
-  State<InstallerScreen> createState() => _InstallerScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
-  bool isInstalling = false;
-  double progress = 0.0;
-  String statusText = "Ready to Install";
+class _MainScreenState extends State<MainScreen> with WindowListener {
   final SystemTray _systemTray = SystemTray();
+  bool isInstalling = false;
+  String statusText = "Ready to Install";
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    initSystemTray();
   }
 
   @override
@@ -80,221 +76,232 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
 
   Future<void> initSystemTray() async {
     String path = Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
-    
-    // We'll skip actual icon loading if file doesn't exist for now to prevent crash
-    try {
-      await _systemTray.initSystemTray(
-        title: "MRA Monitor",
-        iconPath: path,
-      );
+    await _systemTray.initSystemTray(
+      title: "MRA Monitor",
+      iconPath: path,
+    );
 
-      final Menu menu = Menu();
-      await menu.buildFrom([
-        MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
-        MenuItemLabel(label: 'Sync Now', onClicked: (menuItem) => startSync()),
-        MenuSeparator(),
-        MenuItemLabel(label: 'Exit', onClicked: (menuItem) => exit(0)),
-      ]);
+    final Menu menu = Menu();
+    await menu.buildFrom([
+      MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
+      MenuItemLabel(label: 'Sync Now', onClicked: (menuItem) => MonitoringService.syncData()),
+      MenuSeparator(),
+      MenuItemLabel(label: 'Exit', onClicked: (menuItem) => exit(0)),
+    ]);
 
-      await _systemTray.setContextMenu(menu);
-      _systemTray.registerSystemTrayEventHandler((eventName) {
-        if (eventName == kSystemTrayEventClick) {
-          windowManager.show();
-        }
-      });
-    } catch (e) {
-      debugPrint("Tray error: $e");
-    }
-  }
-
-  Future<void> startSync() async {
-    // Logic to collect and send data (similar to Python agent)
-    debugPrint("Syncing data...");
+    await _systemTray.setContextMenu(menu);
+    _systemTray.registerSystemTrayEventHandler((eventName) {
+      if (eventName == kSystemTrayEventClick) {
+        windowManager.show();
+      }
+    });
   }
 
   void runInstallation() async {
     setState(() {
       isInstalling = true;
-      statusText = "Analyzing System...";
+      statusText = "Setting up background service...";
     });
 
-    // Simulate installation steps
-    for (int i = 1; i <= 100; i++) {
-      await Future.delayed(const Duration(milliseconds: 30));
-      setState(() {
-        progress = i / 100;
-        if (i == 30) statusText = "Fetching Hardware ID...";
-        if (i == 60) statusText = "Configuring Background Service...";
-        if (i == 90) statusText = "Finalizing...";
-      });
-    }
+    await Future.delayed(const Duration(seconds: 2));
+    await MonitoringService.syncData();
 
-    // Real Sync to Server
-    try {
-      await MonitoringService.syncData();
-      setState(() {
-        statusText = "Sync Successful!";
-      });
-    } catch (e) {
-      setState(() {
-        statusText = "Sync failed, but service active.";
-      });
-    }
-
-    await initSystemTray();
     setState(() {
       statusText = "Monitoring Active";
     });
     
-    // Tunggu 2 detik agar user sempat melihat status 'Active', lalu sembunyikan ke Tray
-    await Future.delayed(const Duration(seconds: 2));
-    await windowManager.hide(); 
+    await windowManager.setPreventClose(true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF141417),
-              const Color(0xFF0A0A0B),
-            ],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Close Button
-            Positioned(
-              top: 20,
-              right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white24),
-                onPressed: () => exit(0),
+      backgroundColor: const Color(0xFF0D0D0F),
+      body: Stack(
+        children: [
+          // Background Gradient subtle
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
+                  colors: [
+                    Colors.blueAccent.withValues(alpha: 0.05),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
-            
-            Padding(
-              padding: const EdgeInsets.all(40.0),
+          ),
+
+          // Close Button - Symmetrical padding
+          Positioned(
+            top: 20,
+            right: 20,
+            child: IconButton(
+              icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.3), size: 20),
+              onPressed: () => windowManager.hide(),
+              hoverColor: Colors.redAccent.withValues(alpha: 0.1),
+              splashRadius: 20,
+            ),
+          ),
+
+          // Main Content
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo / Icon Placeholder
+                  // Logo Container
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                      color: Colors.white.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blueAccent.withValues(alpha: 0.1),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        )
+                      ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(30),
                       child: Image.asset(
-                        'assets/app_icon.ico', // Jika anda punya logo.png, ganti namanya di sini
-                        fit: BoxFit.cover,
+                        'assets/app_icon.ico',
+                        fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => const Icon(Icons.monitor, size: 50, color: Colors.blueAccent),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
+
+                  // Brand Text
                   const Text(
                     "MRA Asset Monitor",
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     "Professional IT Hardware Monitoring",
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                  
+                  const SizedBox(height: 80),
+
+                  // Dynamic UI
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    child: _buildInteractionArea(),
+                  ),
+
                   const SizedBox(height: 60),
                   
-                  if (!isInstalling)
-                    ElevatedButton(
-                      onPressed: runInstallation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleAtBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: const Text("Install & Start Monitoring", style: TextStyle(fontWeight: FontWeight.bold)),
-                    )
-                  else if (statusText == "Monitoring Active")
-                    Column(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.greenAccent, size: 48),
-                        const SizedBox(height: 16),
-                        const Text("System is Protected", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 32),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            setState(() => statusText = "Syncing...");
-                            await MonitoringService.syncData();
-                            setState(() => statusText = "Monitoring Active");
-                          },
-                          icon: const Icon(Icons.sync, size: 18),
-                          label: const Text("Sync Now"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blueAccent,
-                            side: const BorderSide(color: Colors.blueAccent),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleAtBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 8,
-                            backgroundColor: Colors.white10,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          statusText,
-                          style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  
-                  const SizedBox(height: 40),
+                  // Footer Version
                   Text(
                     "Version 1.0.0",
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 10),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
 
-// Helper for rounded button
-class RoundedRectangleAtBorder extends OutlinedBorder {
-  final BorderRadius borderRadius;
-  const RoundedRectangleAtBorder({required this.borderRadius});
-  @override
-  OutlinedBorder copyWith({BorderSide? side, BorderRadiusGeometry? borderRadius}) => this;
-  @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => Path()..addRRect(borderRadius.resolve(textDirection).toRRect(rect));
-  @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()..addRRect(borderRadius.resolve(textDirection).toRRect(rect));
-  @override
-  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
-  @override
-  ShapeBorder scale(double t) => this;
+  Widget _buildInteractionArea() {
+    if (!isInstalling) {
+      return ElevatedButton(
+        key: const ValueKey("btn_install"),
+        onPressed: runInstallation,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blueAccent,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 60),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 10,
+          shadowColor: Colors.blueAccent.withValues(alpha: 0.3),
+        ),
+        child: const Text("INSTALL & START", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+      );
+    } else if (statusText == "Monitoring Active") {
+      return Column(
+        key: const ValueKey("area_active"),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.greenAccent.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 40),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "SYSTEM PROTECTED",
+            style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w900, letterSpacing: 1),
+          ),
+          const SizedBox(height: 32),
+          TextButton.icon(
+            onPressed: () async {
+              setState(() => statusText = "Syncing...");
+              await MonitoringService.syncData();
+              setState(() => statusText = "Monitoring Active");
+            },
+            icon: const Icon(Icons.sync, size: 18),
+            label: const Text("SYNC DATA NOW"),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.blueAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return Column(
+        key: const ValueKey("area_installing"),
+        children: [
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 3),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            statusText.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.blueAccent.withValues(alpha: 0.7),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      );
+    }
+  }
 }
