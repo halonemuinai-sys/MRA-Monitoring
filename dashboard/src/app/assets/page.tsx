@@ -105,6 +105,11 @@ export default async function AssetsPage() {
                     <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
                     <ComplianceBadge icon={Key} active={asset.bitlocker_status === 'Encrypted'} label="BL" />
                   </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter bg-white/5 px-2 py-1 rounded">
+                      {Array.isArray(asset.installed_apps) ? asset.installed_apps.length : 0} Apps
+                    </div>
+                  </div>
                 </td>
 
                 <td className="px-8 py-6">
