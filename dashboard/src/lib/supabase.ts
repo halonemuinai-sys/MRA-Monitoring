@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Gunakan Service Role di server (jika ada), gunakan Anon Key di client
+const supabaseKey = (typeof window === 'undefined' 
+  ? process.env.SUPABASE_SERVICE_ROLE_KEY 
+  : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) || '';
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   db: {
-    schema: 'mra_internal' // Kembali menggunakan schema khusus sesuai arahan Anda
+    schema: 'mra_internal'
   }
 });

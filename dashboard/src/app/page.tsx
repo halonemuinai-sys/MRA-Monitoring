@@ -23,8 +23,11 @@ async function getStats() {
   const critical = assets.filter(a => a.bitlocker_status === 'Unprotected' || a.firewall_status === 'Disabled' || a.storage_free_gb < 10).length;
   const warning = assets.filter(a => a.battery_wear_level > 20 || (a.storage_free_gb < 30 && a.storage_free_gb >= 10)).length;
   const healthy = total - critical - warning;
+  
+  const totalStorage = assets.reduce((acc, a) => acc + (a.storage_total_gb || 0), 0);
+  const totalStorageTB = (totalStorage / 1024).toFixed(1);
 
-  return { total, critical, warning, healthy };
+  return { total, critical, warning, healthy, totalStorageTB };
 }
 
 export default async function OverviewPage() {
@@ -38,8 +41,9 @@ export default async function OverviewPage() {
       </header>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard title="Total Fleet" value={stats.total} icon={Database} color="blue" />
+        <StatCard title="Storage Capacity" value={`${stats.totalStorageTB} TB`} icon={Zap} color="purple" />
         <StatCard title="Healthy Nodes" value={stats.healthy} icon={CheckCircle2} color="green" />
         <StatCard title="Risk Warnings" value={stats.warning} icon={AlertTriangle} color="yellow" />
         <StatCard title="Security Breach" value={stats.critical} icon={ShieldAlert} color="red" />

@@ -93,11 +93,15 @@ export default async function AssetsPage() {
                 </td>
 
                 <td className="px-8 py-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-bold text-slate-400">{asset.storage_free_gb} GB Free</span>
-                    <span className="text-[10px] text-slate-500">{Math.round((asset.storage_free_gb / asset.storage_total_gb) * 100)}%</span>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-bold text-white tracking-tight">
+                      {asset.storage_free_gb} / {asset.storage_total_gb} GB Free
+                    </span>
+                    <StorageBar 
+                      free={asset.storage_free_gb} 
+                      total={asset.storage_total_gb} 
+                    />
                   </div>
-                  <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
                 </td>
 
                 <td className="px-8 py-6">
