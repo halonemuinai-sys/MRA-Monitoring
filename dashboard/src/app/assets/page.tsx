@@ -1,6 +1,7 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
 import StorageBar from '@/components/StorageBar';
+import AssetCategoryEditor from '@/components/AssetCategoryEditor';
 import { 
   Shield, 
   Lock, 
@@ -57,9 +58,10 @@ export default async function AssetsPage() {
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-100">
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity & User</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardware Details</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage Health</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security & Apps</th>
+              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Classification</th>
+              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardware</th>
+              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage</th>
+              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Compliance</th>
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Network</th>
               <th className="px-8 py-5"></th>
             </tr>
@@ -67,6 +69,7 @@ export default async function AssetsPage() {
           <tbody className="divide-y divide-slate-100">
             {assets.map((asset: any) => (
               <tr key={asset.id} className="hover:bg-slate-50/50 transition-all group">
+                {/* 1. Identity */}
                 <td className="px-8 py-7">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-transform">
@@ -75,57 +78,64 @@ export default async function AssetsPage() {
                     <div>
                       <h4 className="text-base font-bold text-slate-900 leading-none mb-1">{asset.hostname}</h4>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded">{asset.current_user_name?.split('\\')[1] || asset.current_user_name}</span>
-                        <span className="text-[10px] font-mono text-slate-300">{asset.serial_number}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded">
+                          {asset.current_user_name?.split('\\')[1] || asset.current_user_name}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </td>
 
+                {/* 2. Classification (NEW DROPDOWN EDITOR) */}
+                <td className="px-8 py-7">
+                  <AssetCategoryEditor 
+                    assetId={asset.id} 
+                    currentType={asset.device_type} 
+                    currentStatus={asset.ownership_status} 
+                  />
+                </td>
+
+                {/* 3. Hardware */}
                 <td className="px-8 py-7">
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tighter">{asset.manufacturer} {asset.model}</p>
-                    <p className="text-[10px] text-slate-400 font-medium">{asset.cpu_type} | {asset.ram_gb}GB RAM</p>
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tighter truncate max-w-[120px]">{asset.model}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">{asset.ram_gb}GB RAM</p>
                   </div>
                 </td>
 
+                {/* 4. Storage */}
                 <td className="px-8 py-7">
                   <div className="flex flex-col gap-2">
-                    <span className="text-xs font-bold text-slate-700 tracking-tight">
-                      {asset.storage_free_gb} / {asset.storage_total_gb} GB Free
+                    <span className="text-[10px] font-bold text-slate-700 tracking-tight">
+                      {asset.storage_free_gb} GB Free
                     </span>
-                    <StorageBar 
-                      free={asset.storage_free_gb} 
-                      total={asset.storage_total_gb} 
-                    />
+                    <div className="w-24">
+                      <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
+                    </div>
                   </div>
                 </td>
 
+                {/* 5. Compliance */}
                 <td className="px-8 py-7">
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 items-center">
                     <ComplianceBadge icon={Shield} active={!!asset.antivirus_name} label="AV" />
                     <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
-                    <ComplianceBadge icon={Key} active={asset.bitlocker_status === 'Encrypted'} label="BL" />
-                  </div>
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-400">
-                      <Package size={12} />
+                    <div className="ml-2 flex flex-col">
+                      <span className="text-[10px] font-black text-slate-900">{asset.apps_count || 0}</span>
+                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">Apps</span>
                     </div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      {asset.apps_count || 0} Apps Installed
-                    </span>
                   </div>
                 </td>
 
+                {/* 6. Network */}
                 <td className="px-8 py-7">
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-700 font-mono tracking-tight">{asset.public_ip}</p>
                     <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest flex items-center gap-1">
                       <Globe size={10} />
-                      {asset.location_city || 'Unknown'}, {asset.location_country || ''}
+                      {asset.location_city || 'Unknown'}
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
-                      Sync: {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </td>
@@ -149,13 +159,13 @@ function ComplianceBadge({ icon: Icon, active, label }: { icon: any; active: boo
     <div 
       title={`${label}: ${active ? 'Healthy' : 'Risk'}`}
       className={`
-        w-8 h-8 rounded-xl flex items-center justify-center transition-all border
+        w-7 h-7 rounded-lg flex items-center justify-center transition-all border
         ${active 
-          ? 'bg-green-50 text-green-600 border-green-100 shadow-sm' 
-          : 'bg-red-50 text-red-500 border-red-100 shadow-sm'}
+          ? 'bg-green-50 text-green-600 border-green-100' 
+          : 'bg-red-50 text-red-500 border-red-100'}
       `}
     >
-      <Icon size={14} strokeWidth={2.5} />
+      <Icon size={12} strokeWidth={2.5} />
     </div>
   );
 }
