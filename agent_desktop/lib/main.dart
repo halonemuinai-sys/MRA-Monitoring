@@ -11,7 +11,7 @@ import 'monitoring_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Window Manager
+  // 1. Initialize Window Manager
   await windowManager.ensureInitialized();
   
   WindowOptions windowOptions = const WindowOptions(
@@ -23,20 +23,25 @@ void main() async {
     title: 'MRA Asset Intelligence',
   );
   
+  // 2. Setup Auto Startup
+  try {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    LaunchAtStartup.instance.setup(
+      appName: packageInfo.appName,
+      appPath: Platform.resolvedExecutable,
+    );
+  } catch (e) {
+    debugPrint("LaunchAtStartup Error: $e");
+  }
+
+  // 3. Start Window Logic
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    // Prevent default close behavior
+    // CRITICAL: Prevent close must be set
     await windowManager.setPreventClose(true);
   });
 
-  // Setup Launch at Startup
-  PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  LaunchAtStartup.instance.setup(
-    appName: packageInfo.appName,
-    appPath: Platform.resolvedExecutable,
-  );
-  
   runApp(const MRAMonitorApp());
 }
 
@@ -78,9 +83,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    initSystemTray();
+    // Initialize Tray AFTER a short delay to ensure window is ready
+    Future.delayed(const Duration(milliseconds: 500), () {
+      initSystemTray();
+    });
     _refreshData();
-    // Auto sync every 5 minutes
     _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
       _refreshData();
     });
@@ -93,17 +100,28 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     super.dispose();
   }
 
-  // Handle Window Close
+  // Handle Window Close (Minimize to Tray)
   @override
   void onWindowClose() async {
+    debugPrint("Window close event triggered");
     bool isPreventClose = await windowManager.isPreventClose();
     if (isPreventClose) {
-      await windowManager.hide(); // Hide to tray instead of closing
+      debugPrint("Hiding window to tray...");
+      await windowManager.hide();
     }
   }
 
   Future<void> initSystemTray() async {
-    String path = Platform.isWindows ? 'windows/runner/resources/app_icon.ico' : 'assets/app_icon.png';
+    // Gunakan path absolut yang relatif ke folder eksekusi Windows
+    String iconPath = Platform.isWindows 
+        ? 'windows/runner/resources/app_icon.ico' 
+        : 'assets/app_icon.png';
+
+    // Jika file tidak ditemukan (saat di build), coba fallback ke icon default windows
+    if (!File(iconPath).existsSync()) {
+      debugPrint("Tray icon not found at $iconPath, using fallback");
+      iconPath = 'assets/app_icon.ico'; // Pastikan Anda punya ini di folder assets
+    }
 
     final Menu menu = Menu();
     await menu.buildFrom([
@@ -112,14 +130,17 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       MenuItemLabel(label: 'Exit MRA Monitor', onClicked: (menuItem) => exit(0)),
     ]);
 
-    await _systemTray.initSystemTray(
-      title: "MRA Monitor",
-      iconPath: path,
-    );
+    try {
+      await _systemTray.initSystemTray(
+        title: "MRA Monitor",
+        iconPath: iconPath,
+      );
+      await _systemTray.setContextMenu(menu);
+      debugPrint("System Tray initialized successfully");
+    } catch (e) {
+      debugPrint("System Tray Initialization Failed: $e");
+    }
 
-    await _systemTray.setContextMenu(menu);
-
-    // Handle tray double click
     _systemTray.registerSystemTrayEventHandler((eventName) {
       if (eventName == kSystemTrayEventClick) {
         windowManager.show();
@@ -130,11 +151,14 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   Future<void> _refreshData() async {
+    if (!mounted) return;
     setState(() => _isSyncing = true);
     try {
       final newData = await _monitoringService.collectData();
-      setState(() => _data = newData);
-      await _monitoringService.syncToSupabase(newData);
+      if (mounted) {
+        setState(() => _data = newData);
+        await _monitoringService.syncToSupabase(newData);
+      }
     } catch (e) {
       debugPrint('Sync Error: $e');
     } finally {
@@ -148,7 +172,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       backgroundColor: const Color(0xFF0F0F12),
       body: Stack(
         children: [
-          // Background Gradient
           Positioned(
             top: -100,
             right: -100,
@@ -157,12 +180,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blue.withAlpha(12), // Menggantikan withOpacity
+                color: Colors.blue.withAlpha(12),
               ),
             ),
           ),
           
-          // Main Content
           Padding(
             padding: const EdgeInsets.all(32.0),
             child: Column(
