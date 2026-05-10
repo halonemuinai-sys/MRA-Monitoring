@@ -191,7 +191,14 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
                     ),
-                    child: const Icon(Icons.security_update_good, size: 50, color: Colors.blueAccent),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/app_icon.ico', // Jika anda punya logo.png, ganti namanya di sini
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.monitor, size: 50, color: Colors.blueAccent),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 32),
                   const Text(
