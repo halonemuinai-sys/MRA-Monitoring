@@ -59,14 +59,19 @@ export default async function OverviewPage() {
             
             {/* Mock Chart Visualization */}
             <div className="flex items-end gap-3 h-48">
-              {[40, 70, 45, 90, 65, 80, 94].map((h, i) => (
+              {[
+                { h: 'h-[40%]' },
+                { h: 'h-[70%]' },
+                { h: 'h-[45%]' },
+                { h: 'h-[90%]' },
+                { h: 'h-[65%]' },
+                { h: 'h-[80%]' },
+                { h: 'h-[94%]', active: true },
+              ].map((item, i) => (
                 <div key={i} className="flex-1 group/bar relative">
-                  <div 
-                    className="bg-blue-600/20 group-hover/bar:bg-blue-600/40 transition-all rounded-t-lg" 
-                    style={{ height: `${h}%` }}
-                  />
-                  {i === 6 && (
-                    <div className="absolute inset-0 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] rounded-t-lg" style={{ height: `${h}%` }} />
+                  <div className={`bg-blue-600/20 group-hover/bar:bg-blue-600/40 transition-all rounded-t-lg ${item.h}`} />
+                  {item.active && (
+                    <div className={`absolute inset-0 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] rounded-t-lg ${item.h}`} />
                   )}
                 </div>
               ))}

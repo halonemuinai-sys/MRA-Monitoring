@@ -70,7 +70,11 @@ export default function Sidebar() {
             <p className="text-xs font-bold text-white">Admin MRA</p>
             <p className="text-[10px] text-slate-500">System Administrator</p>
           </div>
-          <button className="text-slate-500 hover:text-red-500 transition-colors">
+          <button 
+            title="Logout"
+            aria-label="Logout"
+            className="text-slate-500 hover:text-red-500 transition-colors"
+          >
             <LogOut size={16} />
           </button>
         </div>

@@ -42,7 +42,11 @@ export default async function AssetsPage() {
               className="bg-[#141417] border border-white/5 rounded-2xl pl-12 pr-6 py-3 text-sm focus:outline-none focus:border-blue-500/50 w-80 transition-all"
             />
           </div>
-          <button className="p-3 bg-[#141417] border border-white/5 rounded-2xl text-slate-400 hover:text-white hover:border-white/20 transition-all">
+          <button 
+            title="Filter Assets"
+            aria-label="Filter Assets"
+            className="p-3 bg-[#141417] border border-white/5 rounded-2xl text-slate-400 hover:text-white hover:border-white/20 transition-all"
+          >
             <Filter size={20} />
           </button>
         </div>
@@ -109,7 +113,11 @@ export default async function AssetsPage() {
                 </td>
 
                 <td className="px-8 py-6 text-right">
-                  <button className="p-2 text-slate-600 hover:text-white transition-colors">
+                  <button 
+                    title="Device Options"
+                    aria-label="Device Options"
+                    className="p-2 text-slate-600 hover:text-white transition-colors"
+                  >
                     <MoreVertical size={18} />
                   </button>
                 </td>
