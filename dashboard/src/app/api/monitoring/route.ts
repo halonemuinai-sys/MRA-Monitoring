@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     // 2. Sync Installed Apps to separate table (On-Demand indexing)
     if (Array.isArray(installed_apps) && asset) {
       // Clear old apps for this asset first to keep it fresh
-      await supabase.from('installed_apps').delete().eq('asset_id', asset.id);
+      await supabase.from('asset_installed_apps').delete().eq('asset_id', asset.id);
       
       // Batch insert new apps
       const appRecords = installed_apps.map((appName: string) => ({
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       }));
 
       if (appRecords.length > 0) {
-        await supabase.from('installed_apps').insert(appRecords);
+        await supabase.from('asset_installed_apps').insert(appRecords);
       }
     }
 

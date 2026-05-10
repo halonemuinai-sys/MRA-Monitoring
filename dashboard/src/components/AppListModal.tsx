@@ -26,15 +26,16 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('installed_apps')
+        .from('asset_installed_apps')
         .select('app_name')
         .eq('asset_id', assetId)
         .order('app_name', { ascending: true });
 
       if (error) throw error;
       setApps(data || []);
-    } catch (err) {
-      console.error("Failed to fetch apps:", err);
+    } catch (err: any) {
+      console.error("Detailed Fetch Error:", err.message || err);
+      alert("Error: " + (err.message || "Failed to fetch apps. Please ensure the 'installed_apps' table exists in Supabase."));
     } finally {
       setLoading(false);
     }
