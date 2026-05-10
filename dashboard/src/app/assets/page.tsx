@@ -1,6 +1,7 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
 import StorageBar from '@/components/StorageBar';
+import AppListModal from '@/components/AppListModal';
 import { 
   Shield, 
   Lock, 
@@ -105,10 +106,12 @@ export default async function AssetsPage() {
                     <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
                     <ComplianceBadge icon={Key} active={asset.bitlocker_status === 'Encrypted'} label="BL" />
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter bg-white/5 px-2 py-1 rounded">
-                      {asset.asset_installed_apps?.[0]?.count || 0} Apps
-                    </div>
+                  <div className="mt-3">
+                    <AppListModal 
+                      assetId={asset.id} 
+                      hostname={asset.hostname} 
+                      appCount={asset.asset_installed_apps?.[0]?.count || 0} 
+                    />
                   </div>
                 </td>
 
