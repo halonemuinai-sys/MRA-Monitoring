@@ -32,12 +32,11 @@ void main() async {
 
   // Setup Launch at Startup
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  launchAtStartup.setup(
+  LaunchAtStartup.instance.setup(
     appName: packageInfo.appName,
     appPath: Platform.resolvedExecutable,
   );
-  await launchAtStartup.enable();
-
+  
   runApp(const MRAMonitorApp());
 }
 
@@ -106,7 +105,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   Future<void> initSystemTray() async {
     String path = Platform.isWindows ? 'windows/runner/resources/app_icon.ico' : 'assets/app_icon.png';
 
-    final AppWindow appWindow = AppWindow();
     final Menu menu = Menu();
     await menu.buildFrom([
       MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
@@ -159,7 +157,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blue.withOpacity(0.05),
+                color: Colors.blue.withAlpha(12), // Menggantikan withOpacity
               ),
             ),
           ),
@@ -207,7 +205,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withAlpha(25),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.security, color: Colors.blue, size: 24),
@@ -229,7 +227,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
               'Hardware & Software Compliance Monitoring',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withAlpha(100),
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
@@ -239,9 +237,9 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _isSyncing ? Colors.blue.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+            color: _isSyncing ? Colors.blue.withAlpha(25) : Colors.white.withAlpha(12),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _isSyncing ? Colors.blue.withOpacity(0.3) : Colors.white10),
+            border: Border.all(color: _isSyncing ? Colors.blue.withAlpha(76) : Colors.white10),
           ),
           child: Row(
             children: [
@@ -273,9 +271,9 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withAlpha(8),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withAlpha(12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,11 +287,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withAlpha(76),
                   letterSpacing: 1,
                 ),
               ),
-              Icon(icon, color: color.withOpacity(0.5), size: 20),
+              Icon(icon, color: color.withAlpha(127), size: 20),
             ],
           ),
           Text(
@@ -316,11 +314,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       children: [
         Text(
           'Last Sync: ${DateTime.now().toString().split('.')[0]}',
-          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(76), fontWeight: FontWeight.bold),
         ),
         Text(
           'AGENT v2.0.0',
-          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 10, color: Colors.white.withAlpha(76), fontWeight: FontWeight.bold),
         ),
       ],
     );
