@@ -1,5 +1,6 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
+import StorageBar from '@/components/StorageBar';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,12 +83,7 @@ export default async function Dashboard() {
                   {/* Storage */}
                   <td className="px-6 py-6">
                     <div className="text-xs font-mono text-white mb-1.5">{asset.storage_free_gb} / {asset.storage_total_gb} GB</div>
-                    <div className="w-24 h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full storage-bar-progress ${asset.storage_free_gb < 20 ? 'bg-red-500' : 'bg-blue-500/50'}`}
-                        style={{ '--progress-width': `${(asset.storage_free_gb / asset.storage_total_gb) * 100}%` } as React.CSSProperties}
-                      ></div>
-                    </div>
+                    <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
                   </td>
 
                   {/* Security Compliance */}
