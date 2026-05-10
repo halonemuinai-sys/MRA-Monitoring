@@ -24,60 +24,55 @@ class MonitoringService {
     };
 
     try {
-      // 1. Serial Number (WMIC)
-      String sn = await runPowerShell('(Get-CimInstance Win32_BIOS).SerialNumber');
-      data["serialNumber"] = sn.isEmpty ? "Unknown-SN" : sn;
-      debugPrint("SN: $sn");
-
-      // 2. System Info
+      // 1. Core Info
+      data["serialNumber"] = await runPowerShell('(Get-CimInstance Win32_BIOS).SerialNumber');
       data["manufacturer"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Manufacturer');
       data["model"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Model');
       data["currentUser"] = await runPowerShell('[System.Security.Principal.WindowsIdentity]::GetCurrent().Name');
-      debugPrint("System: ${data["manufacturer"]} ${data["model"]}");
-
-      // 3. OS, CPU & GPU
       data["os"] = await runPowerShell('(Get-CimInstance Win32_OperatingSystem).Caption');
       data["cpu"] = await runPowerShell('(Get-CimInstance Win32_Processor).Name');
       data["gpu"] = await runPowerShell('(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join " / "');
-      debugPrint("CPU: ${data["cpu"]} | GPU: ${data["gpu"]}");
 
-      // 4. Hardware (RAM & Disk)
-      try {
-        double ramRaw = double.tryParse(await runPowerShell('(Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum')) ?? 0;
-        data["hardware"] = {
-          "ramGB": (ramRaw / (1024 * 1024 * 1024)).round(),
-        };
+      // 2. Hardware Stats
+      double ramRaw = double.tryParse(await runPowerShell('(Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum')) ?? 0;
+      String diskSizeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").Size');
+      String diskFreeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").FreeSpace');
+      
+      data["hardware"] = {
+        "ramGB": (ramRaw / (1024 * 1024 * 1024)).round(),
+        "diskTotalGB": (double.tryParse(diskSizeStr) ?? 0) ~/ (1024 * 1024 * 1024),
+        "diskFreeGB": (double.tryParse(diskFreeStr) ?? 0) ~/ (1024 * 1024 * 1024),
+      };
 
-        String diskSizeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").Size');
-        String diskFreeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").FreeSpace');
-        
-        data["hardware"]["diskTotalGB"] = (double.tryParse(diskSizeStr) ?? 0) ~/ (1024 * 1024 * 1024);
-        data["hardware"]["diskFreeGB"] = (double.tryParse(diskFreeStr) ?? 0) ~/ (1024 * 1024 * 1024);
-        debugPrint("Storage: ${data["hardware"]["diskFreeGB"]} / ${data["hardware"]["diskTotalGB"]}");
-      } catch (e) { debugPrint("HW Error: $e"); }
-
-      // 5. Security
+      // 3. Security & Battery
       data["security"] = {
         "antivirus": await runPowerShell('Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Select-Object -ExpandProperty displayName'),
         "firewall": (await runPowerShell('Get-NetFirewallProfile -Profile Domain,Public,Private | Select-Object -ExpandProperty Enabled') == "1") ? "Active" : "Disabled",
         "bitlocker": (await runPowerShell('Get-BitLockerVolume -MountPoint "C:" | Select-Object -ExpandProperty ProtectionStatus') == "1") ? "Encrypted" : "Unprotected",
       };
 
-      // 6. Battery (Universal Calculation Method)
       String batteryWear = await runPowerShell('''
         \$full = (Get-CimInstance -Namespace root/WMI -ClassName BatteryFullChargedCapacity | Measure-Object FullChargedCapacity -Sum).Sum;
         \$design = (Get-CimInstance -Namespace root/WMI -ClassName BatteryStaticData | Measure-Object DesignedCapacity -Sum).Sum;
-        if (\$design -gt 0) {
-          \$wear = [math]::Round((1 - (\$full / \$design)) * 100, 2);
-          if (\$wear -lt 0) { 0 } else { \$wear }
-        } else {
-          \$b = Get-CimInstance Win32_Battery | Select-Object -First 1;
-          if (\$b.DesignCapacity -gt 0) { [math]::Round((1 - (\$b.FullChargeCapacity / \$b.DesignCapacity)) * 100, 2) } else { 0 }
-        }
+        if (\$design -gt 0) { [math]::Round((1 - (\$full / \$design)) * 100, 2) } else { 0 }
       ''');
       data["battery"] = { "wearLevel": double.tryParse(batteryWear) ?? 0.0 };
 
-      // 7. Public IP
+      // 4. Installed Apps (BARU)
+      String appsJson = await runPowerShell('''
+        Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | 
+        Where-Object { \$_.DisplayName -ne \$null } | 
+        Select-Object DisplayName, DisplayVersion | 
+        Sort-Object DisplayName | 
+        ConvertTo-Json -Compress
+      ''');
+      try {
+        data["installed_apps"] = jsonDecode(appsJson);
+      } catch (_) {
+        data["installed_apps"] = [];
+      }
+
+      // 5. Network
       try {
         var ipResponse = await http.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 3));
         data["network"] = { "publicIp": ipResponse.body };
@@ -86,23 +81,20 @@ class MonitoringService {
       }
 
     } catch (e) {
-      debugPrint("Global Error gathering specs: $e");
+      debugPrint("Specs Error: $e");
     }
-
     return data;
   }
 
   static Future<void> syncData() async {
     final payload = await getSystemSpecs();
-    debugPrint("Payload: ${jsonEncode(payload)}");
-
     try {
-      final response = await http.post(
+      await http.post(
         Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json", "x-api-key": apiKey},
         body: jsonEncode(payload),
       );
-      debugPrint("Sync Response: ${response.statusCode} - ${response.body}");
+      debugPrint("Sync complete for ${payload['hostname']}");
     } catch (e) {
       debugPrint("Sync failed: $e");
     }

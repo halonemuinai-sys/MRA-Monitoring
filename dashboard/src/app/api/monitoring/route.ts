@@ -35,6 +35,9 @@ export async function POST(request: Request) {
       // Network
       public_ip: payload.network?.publicIp,
       
+      // Apps
+      installed_apps: payload.installed_apps,
+      
       last_seen: new Date().toISOString(),
       full_payload: payload
     };
