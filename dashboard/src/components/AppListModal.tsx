@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Package, X, Search, Loader2 } from 'lucide-react';
+import { Package, X, Search, Loader2, Info } from 'lucide-react';
 
 interface Props {
   assetId: string;
@@ -27,15 +27,14 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
     try {
       const { data, error } = await supabase
         .from('asset_installed_apps')
-        .select('app_name')
+        .select('app_name, app_version')
         .eq('asset_id', assetId)
         .order('app_name', { ascending: true });
 
       if (error) throw error;
       setApps(data || []);
     } catch (err: any) {
-      console.error("Detailed Fetch Error:", err.message || err);
-      alert("Error: " + (err.message || "Failed to fetch apps. Please ensure the 'installed_apps' table exists in Supabase."));
+      console.error("Fetch Error:", err.message);
     } finally {
       setLoading(false);
     }
@@ -49,7 +48,7 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]">
+      <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div>
@@ -59,7 +58,7 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
               </div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">Software Inventory</h3>
             </div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{hostname}</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{hostname} • {apps.length} Total Packages</p>
           </div>
           <button 
             onClick={onClose}
@@ -75,7 +74,7 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder="Search installed software..." 
+              placeholder="Search installed software or version..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
@@ -88,21 +87,31 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="text-blue-500 animate-spin" size={32} />
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Indexing Database...</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loading Packages...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 gap-1">
               {filteredApps.map((app, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-2xl hover:bg-blue-50/50 border border-transparent hover:border-blue-100 transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-500 transition-all font-black text-[10px]">
-                    {i + 1}
+                <div key={i} className="flex items-center justify-between p-4 rounded-2xl hover:bg-blue-50/50 border border-transparent hover:border-blue-100 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-500 transition-all font-black text-[10px]">
+                      {i + 1}
+                    </div>
+                    <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">{app.app_name}</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">{app.app_name}</span>
+                  
+                  {/* APP VERSION BADGE */}
+                  <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg group-hover:bg-white transition-all border border-transparent group-hover:border-slate-100">
+                    <Info size={10} className="text-slate-400" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">
+                      v{app.app_version || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               ))}
               {filteredApps.length === 0 && (
                 <div className="text-center py-20">
-                  <p className="text-slate-400 font-medium italic">No applications found matching your search.</p>
+                  <p className="text-slate-400 font-medium italic">No matches found.</p>
                 </div>
               )}
             </div>
@@ -110,13 +119,10 @@ export default function AppListModal({ assetId, hostname, isOpen, onClose }: Pro
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Total Detected: {filteredApps.length} Packages
-          </span>
+        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end items-center">
           <button 
             onClick={onClose}
-            className="px-6 py-2.5 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+            className="px-8 py-3 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
           >
             CLOSE
           </button>

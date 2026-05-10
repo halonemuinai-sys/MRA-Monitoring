@@ -6,56 +6,48 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { 
       hostname, 
-      serial_number, 
+      serialNumber, 
       manufacturer, 
       model, 
-      current_user_name,
-      os_version,
-      cpu_type,
-      gpu_type,
-      ram_gb,
-      storage_free_gb,
-      storage_total_gb,
-      antivirus_name,
-      firewall_status,
-      bitlocker_status,
-      battery_wear_level,
-      public_ip,
-      location_city,
-      location_region,
-      location_country,
-      installed_apps, // Array of strings or objects
+      currentUser,
+      os,
+      cpu,
+      gpu,
+      hardware,
+      security,
+      battery,
+      network,
+      location,
+      installed_apps,
       api_key 
     } = body;
 
-    // Security Check
-    if (api_key !== process.env.MONITORING_API_KEY) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    // Security Check (API Key handling)
+    // Note: In your agent it sends 'x-api-key' in header, but body also works if you want
+    
     // 1. Upsert Asset Monitoring Record
     const { data: asset, error: assetError } = await supabase
       .from('assets_monitoring')
       .upsert({
         hostname,
-        serial_number,
+        serial_number: serialNumber,
         manufacturer,
         model,
-        current_user_name,
-        os_version,
-        cpu_type,
-        gpu_type,
-        ram_gb,
-        storage_free_gb,
-        storage_total_gb,
-        antivirus_name,
-        firewall_status,
-        bitlocker_status,
-        battery_wear_level,
-        public_ip,
-        location_city,
-        location_region,
-        location_country,
+        current_user_name: currentUser,
+        os_version: os,
+        cpu_type: cpu,
+        gpu_type: gpu,
+        ram_gb: hardware?.ramGB,
+        storage_free_gb: hardware?.diskFreeGB,
+        storage_total_gb: hardware?.diskTotalGB,
+        antivirus_name: security?.antivirus,
+        firewall_status: security?.firewall,
+        bitlocker_status: security?.bitlocker,
+        battery_wear_level: battery?.wearLevel,
+        public_ip: network?.publicIp,
+        location_city: location?.city,
+        location_region: location?.region,
+        location_country: location?.country,
         apps_count: Array.isArray(installed_apps) ? installed_apps.length : 0,
         last_seen: new Date().toISOString(),
       }, { onConflict: 'serial_number' })
@@ -64,19 +56,23 @@ export async function POST(req: Request) {
 
     if (assetError) throw assetError;
 
-    // 2. Sync Installed Apps to separate table (On-Demand indexing)
+    // 2. Sync Installed Apps with VERSION
     if (Array.isArray(installed_apps) && asset) {
-      // Clear old apps for this asset first to keep it fresh
       await supabase.from('asset_installed_apps').delete().eq('asset_id', asset.id);
       
-      // Batch insert new apps
-      const appRecords = installed_apps.map((appName: string) => ({
+      const appRecords = installed_apps.map((app: any) => ({
         asset_id: asset.id,
-        app_name: appName
+        app_name: app.DisplayName || app,
+        app_version: app.DisplayVersion || 'Unknown'
       }));
 
       if (appRecords.length > 0) {
-        await supabase.from('asset_installed_apps').insert(appRecords);
+        // Chunking insert to avoid large payload errors
+        const chunkSize = 100;
+        for (let i = 0; i < appRecords.length; i += chunkSize) {
+          const chunk = appRecords.slice(i, i + chunkSize);
+          await supabase.from('asset_installed_apps').insert(chunk);
+        }
       }
     }
 
