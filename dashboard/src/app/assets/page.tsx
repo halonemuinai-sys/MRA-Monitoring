@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 async function getAssets() {
   const { data, error } = await supabase
     .from('assets_monitoring')
-    .select('*')
+    .select('*, asset_installed_apps(count)')
     .order('last_seen', { ascending: false });
   
   if (error) return [];
@@ -107,7 +107,7 @@ export default async function AssetsPage() {
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter bg-white/5 px-2 py-1 rounded">
-                      {Array.isArray(asset.installed_apps) ? asset.installed_apps.length : 0} Apps
+                      {asset.asset_installed_apps?.[0]?.count || 0} Apps
                     </div>
                   </div>
                 </td>
