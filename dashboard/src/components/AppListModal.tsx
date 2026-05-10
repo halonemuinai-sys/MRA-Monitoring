@@ -62,6 +62,7 @@ export default function AppListModal({ assetId, hostname, appCount }: AppListMod
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
+                title="Close"
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-all"
               >
                 <X size={20} />

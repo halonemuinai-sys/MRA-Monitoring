@@ -47,7 +47,7 @@ export default async function AssetsPage() {
               className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-blue-500 shadow-sm w-80 transition-all"
             />
           </div>
-          <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 hover:shadow-md transition-all shadow-sm">
+          <button title="Filter Assets" className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-900 hover:shadow-md transition-all shadow-sm">
             <Filter size={20} />
           </button>
         </div>
@@ -128,7 +128,7 @@ export default async function AssetsPage() {
                 </td>
 
                 <td className="px-8 py-7 text-right">
-                  <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+                  <button title="More Options" className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
                     <MoreVertical size={18} />
                   </button>
                 </td>
