@@ -1,62 +1,86 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export async function POST(request: Request) {
-  const payload = await request.json();
-  const apiKey = request.headers.get('x-api-key');
-
-  if (apiKey !== process.env.MONITORING_API_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function POST(req: Request) {
   try {
-    // Hitung total aplikasi dari payload
-    const appsCount = payload.installed_apps?.length || 0;
+    const body = await req.json();
+    const { 
+      hostname, 
+      serial_number, 
+      manufacturer, 
+      model, 
+      current_user_name,
+      os_version,
+      cpu_type,
+      gpu_type,
+      ram_gb,
+      storage_free_gb,
+      storage_total_gb,
+      antivirus_name,
+      firewall_status,
+      bitlocker_status,
+      battery_wear_level,
+      public_ip,
+      location_city,
+      location_region,
+      location_country,
+      installed_apps, // Array of strings or objects
+      api_key 
+    } = body;
 
-    // Update data asset utama termasuk apps_count
+    // Security Check
+    if (api_key !== process.env.MONITORING_API_KEY) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 1. Upsert Asset Monitoring Record
     const { data: asset, error: assetError } = await supabase
       .from('assets_monitoring')
       .upsert({
-        serial_number: payload.serialNumber,
-        hostname: payload.hostname,
-        current_user_name: payload.currentUser,
-        manufacturer: payload.manufacturer,
-        model: payload.model,
-        os_version: payload.os,
-        cpu_type: payload.cpu,
-        gpu_type: payload.gpu,
-        
-        // Hardware
-        ram_gb: payload.hardware?.ramGB,
-        storage_total_gb: payload.hardware?.diskTotalGB,
-        storage_free_gb: payload.hardware?.diskFreeGB,
-        
-        // Security
-        antivirus_name: payload.security?.antivirus,
-        firewall_status: payload.security?.firewall,
-        bitlocker_status: payload.security?.bitlocker,
-        battery_wear_level: payload.battery?.wearLevel,
-        
-        // Network & Location
-        public_ip: payload.network?.publicIp,
-        location_city: payload.location?.city,
-        location_region: payload.location?.region,
-        location_country: payload.location?.country,
-
-        // Apps Count (Sederhana & Cepat)
-        apps_count: appsCount,
-        
+        hostname,
+        serial_number,
+        manufacturer,
+        model,
+        current_user_name,
+        os_version,
+        cpu_type,
+        gpu_type,
+        ram_gb,
+        storage_free_gb,
+        storage_total_gb,
+        antivirus_name,
+        firewall_status,
+        bitlocker_status,
+        battery_wear_level,
+        public_ip,
+        location_city,
+        location_region,
+        location_country,
+        apps_count: Array.isArray(installed_apps) ? installed_apps.length : 0,
         last_seen: new Date().toISOString(),
-        full_payload: payload
       }, { onConflict: 'serial_number' })
       .select()
       .single();
 
     if (assetError) throw assetError;
 
-    // Note: Kita berhenti menyimpan ke tabel asset_installed_apps untuk optimasi load
-    
-    return NextResponse.json({ success: true, message: `Sync complete for ${payload.hostname} with ${appsCount} apps` });
+    // 2. Sync Installed Apps to separate table (On-Demand indexing)
+    if (Array.isArray(installed_apps) && asset) {
+      // Clear old apps for this asset first to keep it fresh
+      await supabase.from('installed_apps').delete().eq('asset_id', asset.id);
+      
+      // Batch insert new apps
+      const appRecords = installed_apps.map((appName: string) => ({
+        asset_id: asset.id,
+        app_name: appName
+      }));
+
+      if (appRecords.length > 0) {
+        await supabase.from('installed_apps').insert(appRecords);
+      }
+    }
+
+    return NextResponse.json({ success: true, asset_id: asset.id });
   } catch (error: any) {
     console.error('Monitoring API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
