@@ -54,15 +54,15 @@ export default async function AssetsPage() {
 
       {/* Table Section */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-100">
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity & User</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Classification</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardware</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Compliance</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Network</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity & User</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Classification</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardware Details</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage Health</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Compliance</th>
+              <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Network</th>
               <th className="px-8 py-5"></th>
             </tr>
           </thead>
@@ -76,17 +76,18 @@ export default async function AssetsPage() {
                       <Monitor size={20} />
                     </div>
                     <div>
-                      <h4 className="text-base font-bold text-slate-900 leading-none mb-1">{asset.hostname}</h4>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded">
+                      <h4 className="text-base font-bold text-slate-900 leading-none mb-1.5">{asset.hostname}</h4>
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-block text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded w-fit">
                           {asset.current_user_name?.split('\\')[1] || asset.current_user_name}
                         </span>
+                        <span className="text-[10px] font-mono text-slate-300 font-bold">{asset.serial_number}</span>
                       </div>
                     </div>
                   </div>
                 </td>
 
-                {/* 2. Classification (NEW DROPDOWN EDITOR) */}
+                {/* 2. Classification */}
                 <td className="px-8 py-7">
                   <AssetCategoryEditor 
                     assetId={asset.id} 
@@ -95,46 +96,62 @@ export default async function AssetsPage() {
                   />
                 </td>
 
-                {/* 3. Hardware */}
+                {/* 3. Hardware Details */}
                 <td className="px-8 py-7">
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tighter truncate max-w-[120px]">{asset.model}</p>
-                    <p className="text-[10px] text-slate-400 font-medium">{asset.ram_gb}GB RAM</p>
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tighter">
+                      {asset.manufacturer}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight truncate max-w-[150px]">
+                      {asset.model}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-black tracking-widest uppercase">
+                      {asset.ram_gb}GB RAM
+                    </p>
                   </div>
                 </td>
 
-                {/* 4. Storage */}
+                {/* 4. Storage Health */}
                 <td className="px-8 py-7">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-bold text-slate-700 tracking-tight">
-                      {asset.storage_free_gb} GB Free
+                  <div className="flex flex-col gap-2 min-w-[140px]">
+                    <span className="text-[11px] font-bold text-slate-700 tracking-tight">
+                      {asset.storage_free_gb} / {asset.storage_total_gb} GB Free
                     </span>
-                    <div className="w-24">
-                      <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
-                    </div>
+                    <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
                   </div>
                 </td>
 
                 {/* 5. Compliance */}
                 <td className="px-8 py-7">
-                  <div className="flex gap-1.5 items-center">
-                    <ComplianceBadge icon={Shield} active={!!asset.antivirus_name} label="AV" />
-                    <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
-                    <div className="ml-2 flex flex-col">
-                      <span className="text-[10px] font-black text-slate-900">{asset.apps_count || 0}</span>
-                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">Apps</span>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-2">
+                      <ComplianceBadge icon={Shield} active={!!asset.antivirus_name} label="AV" />
+                      <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-slate-100 rounded text-slate-400">
+                        <Package size={10} />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {asset.apps_count || 0} Apps
+                      </span>
                     </div>
                   </div>
                 </td>
 
                 {/* 6. Network */}
                 <td className="px-8 py-7">
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest flex items-center gap-1">
-                      <Globe size={10} />
-                      {asset.location_city || 'Unknown'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-slate-800 font-mono tracking-tight">{asset.public_ip}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 bg-blue-50 text-blue-600 rounded">
+                        <Globe size={10} />
+                      </div>
+                      <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">
+                        {asset.location_city || 'Unknown'}
+                      </p>
+                    </div>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold tracking-[0.1em]">
                       {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
@@ -159,13 +176,13 @@ function ComplianceBadge({ icon: Icon, active, label }: { icon: any; active: boo
     <div 
       title={`${label}: ${active ? 'Healthy' : 'Risk'}`}
       className={`
-        w-7 h-7 rounded-lg flex items-center justify-center transition-all border
+        w-8 h-8 rounded-xl flex items-center justify-center transition-all border
         ${active 
           ? 'bg-green-50 text-green-600 border-green-100' 
           : 'bg-red-50 text-red-500 border-red-100'}
       `}
     >
-      <Icon size={12} strokeWidth={2.5} />
+      <Icon size={14} strokeWidth={2.5} />
     </div>
   );
 }
