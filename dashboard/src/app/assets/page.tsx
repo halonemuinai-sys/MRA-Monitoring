@@ -121,8 +121,12 @@ export default async function AssetsPage() {
                 <td className="px-8 py-7">
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-slate-700 font-mono tracking-tight">{asset.public_ip}</p>
+                    <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest flex items-center gap-1">
+                      <Globe size={10} />
+                      {asset.location_city || 'Unknown'}, {asset.location_country || ''}
+                    </p>
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
-                      Last Sync: {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Sync: {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </td>

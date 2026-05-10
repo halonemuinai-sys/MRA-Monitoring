@@ -20,13 +20,13 @@ class MonitoringService {
   Future<Map<String, dynamic>> collectData() async {
     Map<String, dynamic> raw = await getFullSpecs();
     
-    // Flatten data for UI convenience
     return {
       "hostname": raw["hostname"],
       "serialNumber": raw["serialNumber"],
       "battery_wear_level": raw["battery"]?["wearLevel"] ?? 0,
       "storage_free_gb": raw["hardware"]?["diskFreeGB"] ?? 0,
       "apps_count": (raw["installed_apps"] as List?)?.length ?? 0,
+      "location": "${raw['location']?['city'] ?? 'Unknown'}, ${raw['location']?['country'] ?? ''}",
       "full_data": raw,
     };
   }
@@ -86,11 +86,21 @@ class MonitoringService {
         data["installed_apps"] = [];
       }
 
+      // Geolocation via IP
       try {
-        var ipResponse = await http.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 3));
-        data["network"] = { "publicIp": ipResponse.body };
+        var geoResponse = await http.get(Uri.parse('http://ip-api.com/json')).timeout(const Duration(seconds: 5));
+        if (geoResponse.statusCode == 200) {
+          var geo = jsonDecode(geoResponse.body);
+          data["network"] = { "publicIp": geo["query"] };
+          data["location"] = {
+            "city": geo["city"],
+            "region": geo["regionName"],
+            "country": geo["country"]
+          };
+        }
       } catch (_) {
         data["network"] = { "publicIp": "Unknown" };
+        data["location"] = { "city": "Unknown", "region": "Unknown", "country": "Unknown" };
       }
 
     } catch (e) {

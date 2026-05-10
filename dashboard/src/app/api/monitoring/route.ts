@@ -35,6 +35,11 @@ export async function POST(request: Request) {
         
         // Network
         public_ip: payload.network?.publicIp,
+
+        // Location
+        location_city: payload.location?.city,
+        location_region: payload.location?.region,
+        location_country: payload.location?.country,
         
         last_seen: new Date().toISOString(),
         full_payload: payload
