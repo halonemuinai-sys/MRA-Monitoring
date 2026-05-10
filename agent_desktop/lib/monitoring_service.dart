@@ -7,7 +7,7 @@ class MonitoringService {
   static const String apiUrl = "http://localhost:3000/api/monitoring";
   static const String apiKey = "mra-secret-key-2024";
 
-  static Future<String> runPowerShell(String command) async {
+  Future<String> runPowerShell(String command) async {
     try {
       var result = await Process.run('powershell', ['-Command', command]);
       return result.stdout.toString().trim();
@@ -17,14 +17,27 @@ class MonitoringService {
     }
   }
 
-  static Future<Map<String, dynamic>> getSystemSpecs() async {
+  Future<Map<String, dynamic>> collectData() async {
+    Map<String, dynamic> raw = await getFullSpecs();
+    
+    // Flatten data for UI convenience
+    return {
+      "hostname": raw["hostname"],
+      "serialNumber": raw["serialNumber"],
+      "battery_wear_level": raw["battery"]?["wearLevel"] ?? 0,
+      "storage_free_gb": raw["hardware"]?["diskFreeGB"] ?? 0,
+      "apps_count": (raw["installed_apps"] as List?)?.length ?? 0,
+      "full_data": raw,
+    };
+  }
+
+  Future<Map<String, dynamic>> getFullSpecs() async {
     Map<String, dynamic> data = {
       "hostname": Platform.localHostname,
       "timestamp": DateTime.now().toIso8601String(),
     };
 
     try {
-      // 1. Core Info
       data["serialNumber"] = await runPowerShell('(Get-CimInstance Win32_BIOS).SerialNumber');
       data["manufacturer"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Manufacturer');
       data["model"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Model');
@@ -33,7 +46,6 @@ class MonitoringService {
       data["cpu"] = await runPowerShell('(Get-CimInstance Win32_Processor).Name');
       data["gpu"] = await runPowerShell('(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join " / "');
 
-      // 2. Hardware Stats
       double ramRaw = double.tryParse(await runPowerShell('(Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum')) ?? 0;
       String diskSizeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").Size');
       String diskFreeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").FreeSpace');
@@ -44,7 +56,6 @@ class MonitoringService {
         "diskFreeGB": (double.tryParse(diskFreeStr) ?? 0) ~/ (1024 * 1024 * 1024),
       };
 
-      // 3. Security & Battery
       data["security"] = {
         "antivirus": await runPowerShell('Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Select-Object -ExpandProperty displayName'),
         "firewall": (await runPowerShell('Get-NetFirewallProfile -Profile Domain,Public,Private | Select-Object -ExpandProperty Enabled') == "1") ? "Active" : "Disabled",
@@ -58,7 +69,6 @@ class MonitoringService {
       ''');
       data["battery"] = { "wearLevel": double.tryParse(batteryWear) ?? 0.0 };
 
-      // 4. Installed Apps (Filtered for meaningful apps)
       String appsJson = await runPowerShell('''
         Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | 
         Where-Object { 
@@ -76,7 +86,6 @@ class MonitoringService {
         data["installed_apps"] = [];
       }
 
-      // 5. Network
       try {
         var ipResponse = await http.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 3));
         data["network"] = { "publicIp": ipResponse.body };
@@ -90,8 +99,8 @@ class MonitoringService {
     return data;
   }
 
-  static Future<void> syncData() async {
-    final payload = await getSystemSpecs();
+  Future<void> syncToSupabase(Map<String, dynamic> flattenedData) async {
+    final payload = flattenedData["full_data"];
     try {
       await http.post(
         Uri.parse(apiUrl),

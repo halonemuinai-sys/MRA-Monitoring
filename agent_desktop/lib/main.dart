@@ -1,230 +1,193 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:system_tray/system_tray.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:io';
+import 'dart:async';
+
 import 'monitoring_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Window Manager
   await windowManager.ensureInitialized();
-
+  
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(450, 650),
+    size: Size(1000, 700),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
+    titleBarStyle: TitleBarStyle.normal,
+    title: 'MRA Asset Intelligence',
   );
   
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
+  await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
-    await windowManager.setResizable(false);
-    await windowManager.setAsFrameless();
+    await windowManager.focus();
+    // Prevent default close behavior
+    await windowManager.setPreventClose(true);
   });
 
-  runApp(const MRAAssetMonitor());
+  // Setup Launch at Startup
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  launchAtStartup.setup(
+    appName: packageInfo.appName,
+    appPath: Platform.resolvedExecutable,
+  );
+  await launchAtStartup.enable();
+
+  runApp(const MRAMonitorApp());
 }
 
-class MRAAssetMonitor extends StatelessWidget {
-  const MRAAssetMonitor({super.key});
+class MRAMonitorApp extends StatelessWidget {
+  const MRAMonitorApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'MRA Asset Intelligence',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
         fontFamily: 'Segoe UI',
       ),
-      home: const MainScreen(),
+      home: const DashboardPage(),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _MainScreenState extends State<MainScreen> with WindowListener {
+class _DashboardPageState extends State<DashboardPage> with WindowListener {
+  final MonitoringService _monitoringService = MonitoringService();
   final SystemTray _systemTray = SystemTray();
-  bool isInstalling = false;
-  String statusText = "Ready to Install";
+  
+  Map<String, dynamic> _data = {};
+  bool _isSyncing = false;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
     initSystemTray();
+    _refreshData();
+    // Auto sync every 5 minutes
+    _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      _refreshData();
+    });
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
+    _timer?.cancel();
     super.dispose();
   }
 
+  // Handle Window Close
   @override
   void onWindowClose() async {
     bool isPreventClose = await windowManager.isPreventClose();
     if (isPreventClose) {
-      await windowManager.hide();
+      await windowManager.hide(); // Hide to tray instead of closing
     }
   }
 
   Future<void> initSystemTray() async {
-    String path = Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
+    String path = Platform.isWindows ? 'windows/runner/resources/app_icon.ico' : 'assets/app_icon.png';
+
+    final AppWindow appWindow = AppWindow();
+    final Menu menu = Menu();
+    await menu.buildFrom([
+      MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
+      MenuSeparator(),
+      MenuItemLabel(label: 'Exit MRA Monitor', onClicked: (menuItem) => exit(0)),
+    ]);
+
     await _systemTray.initSystemTray(
       title: "MRA Monitor",
       iconPath: path,
     );
 
-    final Menu menu = Menu();
-    await menu.buildFrom([
-      MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
-      MenuItemLabel(label: 'Sync Now', onClicked: (menuItem) => MonitoringService.syncData()),
-      MenuSeparator(),
-      MenuItemLabel(label: 'Exit', onClicked: (menuItem) => exit(0)),
-    ]);
-
     await _systemTray.setContextMenu(menu);
+
+    // Handle tray double click
     _systemTray.registerSystemTrayEventHandler((eventName) {
       if (eventName == kSystemTrayEventClick) {
         windowManager.show();
+      } else if (eventName == kSystemTrayEventRightClick) {
+        _systemTray.popUpContextMenu();
       }
     });
   }
 
-  void runInstallation() async {
-    setState(() {
-      isInstalling = true;
-      statusText = "Setting up background service...";
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-    await MonitoringService.syncData();
-
-    setState(() {
-      statusText = "Monitoring Active";
-    });
-    
-    await windowManager.setPreventClose(true);
+  Future<void> _refreshData() async {
+    setState(() => _isSyncing = true);
+    try {
+      final newData = await _monitoringService.collectData();
+      setState(() => _data = newData);
+      await _monitoringService.syncToSupabase(newData);
+    } catch (e) {
+      debugPrint('Sync Error: $e');
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0F),
+      backgroundColor: const Color(0xFF0F0F12),
       body: Stack(
         children: [
-          // Background Gradient subtle
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.2,
-                  colors: [
-                    Colors.blueAccent.withValues(alpha: 0.05),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Close Button - Symmetrical padding
+          // Background Gradient
           Positioned(
-            top: 20,
-            right: 20,
-            child: IconButton(
-              icon: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.3), size: 20),
-              onPressed: () => windowManager.hide(),
-              hoverColor: Colors.redAccent.withValues(alpha: 0.1),
-              splashRadius: 20,
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.withOpacity(0.05),
+              ),
             ),
           ),
-
+          
           // Main Content
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo Container
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blueAccent.withValues(alpha: 0.1),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        )
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: Image.asset(
-                        'assets/app_icon.ico',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.monitor, size: 50, color: Colors.blueAccent),
-                      ),
-                    ),
+          Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 40),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.8,
+                    crossAxisSpacing: 24,
+                    mainAxisSpacing: 24,
+                    children: [
+                      _buildInfoCard('Device', _data['hostname'] ?? '...', Icons.laptop_windows, Colors.blue),
+                      _buildInfoCard('Battery Wear', '${_data['battery_wear_level'] ?? '0'}%', Icons.battery_charging_full, Colors.green),
+                      _buildInfoCard('Storage Free', '${_data['storage_free_gb'] ?? '0'} GB', Icons.storage, Colors.orange),
+                      _buildInfoCard('Installed Apps', '${_data['apps_count'] ?? '0'} Packages', Icons.apps, Colors.purple),
+                    ],
                   ),
-                  const SizedBox(height: 40),
-
-                  // Brand Text
-                  const Text(
-                    "MRA Asset Monitor",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Professional IT Hardware Monitoring",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 80),
-
-                  // Dynamic UI
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: _buildInteractionArea(),
-                  ),
-
-                  const SizedBox(height: 60),
-                  
-                  // Footer Version
-                  Text(
-                    "Version 1.0.0",
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                _buildFooter(),
+              ],
             ),
           ),
         ],
@@ -232,76 +195,134 @@ class _MainScreenState extends State<MainScreen> with WindowListener {
     );
   }
 
-  Widget _buildInteractionArea() {
-    if (!isInstalling) {
-      return ElevatedButton(
-        key: const ValueKey("btn_install"),
-        onPressed: runInstallation,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blueAccent,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 60),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 10,
-          shadowColor: Colors.blueAccent.withValues(alpha: 0.3),
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.security, color: Colors.blue, size: 24),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'MRA ASSET INTELLIGENCE',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Hardware & Software Compliance Monitoring',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.4),
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
-        child: const Text("INSTALL & START", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
-      );
-    } else if (statusText == "Monitoring Active") {
-      return Column(
-        key: const ValueKey("area_active"),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: _isSyncing ? Colors.blue.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _isSyncing ? Colors.blue.withOpacity(0.3) : Colors.white10),
+          ),
+          child: Row(
+            children: [
+              if (_isSyncing)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+                )
+              else
+                const Icon(Icons.check_circle, color: Colors.green, size: 14),
+              const SizedBox(width: 8),
+              Text(
+                _isSyncing ? 'SYNCING...' : 'LIVE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: _isSyncing ? Colors.blue : Colors.green,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 40),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white.withOpacity(0.3),
+                  letterSpacing: 1,
+                ),
+              ),
+              Icon(icon, color: color.withOpacity(0.5), size: 20),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "SYSTEM PROTECTED",
-            style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w900, letterSpacing: 1),
-          ),
-          const SizedBox(height: 32),
-          TextButton.icon(
-            onPressed: () async {
-              setState(() => statusText = "Syncing...");
-              await MonitoringService.syncData();
-              setState(() => statusText = "Monitoring Active");
-            },
-            icon: const Icon(Icons.sync, size: 18),
-            label: const Text("SYNC DATA NOW"),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.blueAccent,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-            ),
-          ),
-        ],
-      );
-    } else {
-      return Column(
-        key: const ValueKey("area_installing"),
-        children: [
-          const SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 3),
-          ),
-          const SizedBox(height: 24),
           Text(
-            statusText.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.blueAccent.withValues(alpha: 0.7),
-              fontSize: 12,
+            value,
+            style: const TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.w900,
-              letterSpacing: 1,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Last Sync: ${DateTime.now().toString().split('.')[0]}',
+          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.bold),
+        ),
+        Text(
+          'AGENT v2.0.0',
+          style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
   }
 }
