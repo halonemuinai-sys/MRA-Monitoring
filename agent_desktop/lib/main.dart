@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:async';
 
@@ -38,7 +41,6 @@ void main() async {
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    // CRITICAL: Prevent close must be set
     await windowManager.setPreventClose(true);
   });
 
@@ -83,10 +85,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    // Initialize Tray AFTER a short delay to ensure window is ready
-    Future.delayed(const Duration(milliseconds: 500), () {
-      initSystemTray();
-    });
+    initSystemTray();
     _refreshData();
     _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
       _refreshData();
@@ -100,54 +99,47 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     super.dispose();
   }
 
-  // Handle Window Close (Minimize to Tray)
   @override
   void onWindowClose() async {
-    debugPrint("Window close event triggered");
     bool isPreventClose = await windowManager.isPreventClose();
     if (isPreventClose) {
-      debugPrint("Hiding window to tray...");
       await windowManager.hide();
     }
   }
 
   Future<void> initSystemTray() async {
-    // Gunakan path absolut yang relatif ke folder eksekusi Windows
-    String iconPath = Platform.isWindows 
-        ? 'windows/runner/resources/app_icon.ico' 
-        : 'assets/app_icon.png';
-
-    // Jika file tidak ditemukan (saat di build), coba fallback ke icon default windows
-    if (!File(iconPath).existsSync()) {
-      debugPrint("Tray icon not found at $iconPath, using fallback");
-      iconPath = 'assets/app_icon.ico'; // Pastikan Anda punya ini di folder assets
-    }
-
-    final Menu menu = Menu();
-    await menu.buildFrom([
-      MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
-      MenuSeparator(),
-      MenuItemLabel(label: 'Exit MRA Monitor', onClicked: (menuItem) => exit(0)),
-    ]);
-
     try {
+      // 1. Salin icon asset ke file fisik di folder temporary agar bisa dibaca Windows
+      final ByteData data = await rootBundle.load('assets/app_icon.ico');
+      final Directory tempDir = await getTemporaryDirectory();
+      final File tempFile = File(p.join(tempDir.path, 'mra_app_icon.ico'));
+      await tempFile.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+
+      final Menu menu = Menu();
+      await menu.buildFrom([
+        MenuItemLabel(label: 'Show Dashboard', onClicked: (menuItem) => windowManager.show()),
+        MenuSeparator(),
+        MenuItemLabel(label: 'Exit MRA Monitor', onClicked: (menuItem) => exit(0)),
+      ]);
+
       await _systemTray.initSystemTray(
         title: "MRA Monitor",
-        iconPath: iconPath,
+        iconPath: tempFile.path, // Gunakan path file fisik
       );
+      
       await _systemTray.setContextMenu(menu);
-      debugPrint("System Tray initialized successfully");
+      debugPrint("System Tray initialized successfully at: ${tempFile.path}");
+
+      _systemTray.registerSystemTrayEventHandler((eventName) {
+        if (eventName == kSystemTrayEventClick) {
+          windowManager.show();
+        } else if (eventName == kSystemTrayEventRightClick) {
+          _systemTray.popUpContextMenu();
+        }
+      });
     } catch (e) {
       debugPrint("System Tray Initialization Failed: $e");
     }
-
-    _systemTray.registerSystemTrayEventHandler((eventName) {
-      if (eventName == kSystemTrayEventClick) {
-        windowManager.show();
-      } else if (eventName == kSystemTrayEventRightClick) {
-        _systemTray.popUpContextMenu();
-      }
-    });
   }
 
   Future<void> _refreshData() async {
@@ -259,7 +251,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _isSyncing ? Colors.blue.withAlpha(25) : Colors.white.withAlpha(12),
+            color: _isSyncing ? Colors.blue.withAlpha(25) : Colors.white10,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _isSyncing ? Colors.blue.withAlpha(76) : Colors.white10),
           ),
