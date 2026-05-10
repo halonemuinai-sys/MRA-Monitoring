@@ -51,7 +51,7 @@ export default function Sidebar() {
             <img src="/logo.png" alt="MRA Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">MRA Monitor</h1>
+            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">AEGIS MRA</h1>
             <p className="text-[10px] text-blue-600 uppercase tracking-[0.2em] font-black mt-1">Intelligence</p>
           </div>
         </div>

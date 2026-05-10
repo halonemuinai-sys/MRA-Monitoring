@@ -18,12 +18,12 @@ void main() async {
   await windowManager.ensureInitialized();
   
   WindowOptions windowOptions = const WindowOptions(
-    size: Size(600, 450), // Ukuran lebih kecil untuk tampilan simpel
+    size: Size(600, 450),
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.normal,
-    title: 'MRA Agent',
+    title: 'AEGIS MRA Agent',
   );
   
   // 2. Setup Auto Startup
@@ -53,7 +53,7 @@ class MRAMonitorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MRA Agent',
+      title: 'AEGIS MRA Agent',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -113,13 +113,13 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
       final Menu menu = Menu();
       await menu.buildFrom([
-        MenuItemLabel(label: 'Open Agent', onClicked: (menuItem) => windowManager.show()),
+        MenuItemLabel(label: 'Open AEGIS MRA', onClicked: (menuItem) => windowManager.show()),
         MenuSeparator(),
         MenuItemLabel(label: 'Exit', onClicked: (menuItem) => exit(0)),
       ]);
 
       await _systemTray.initSystemTray(
-        title: "MRA Monitor",
+        title: "AEGIS MRA",
         iconPath: tempFile.path,
       );
       
@@ -192,7 +192,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
             const SizedBox(height: 32),
             
             const Text(
-              'MRA ASSET MONITORING',
+              'AEGIS MRA MONITORING',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w900,

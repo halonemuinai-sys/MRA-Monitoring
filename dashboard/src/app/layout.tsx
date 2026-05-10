@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MRA Asset Intelligence",
+  title: "AEGIS MRA Intelligence",
   description: "Enterprise IT Hardware Monitoring System",
 };
 

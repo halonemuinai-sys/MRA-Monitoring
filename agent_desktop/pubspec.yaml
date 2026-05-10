@@ -87,8 +87,8 @@ flutter:
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic
 msix_config:
-  display_name: MRA Agent
-  publisher_display_name: MRA Intelligence
+  display_name: AEGIS MRA
+  publisher_display_name: AEGIS MRA Intelligence
   publisher: CN=MRA-INTELLIGENCE
   identity_name: com.mra.agent
   logo_path: assets/app_icon.ico

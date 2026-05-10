@@ -2,7 +2,7 @@
 # Script ini akan mem-build aplikasi dan membuat shortcut di Desktop
 
 $projectName = "agent_desktop"
-$appDisplayName = "MRA Agent"
+$appDisplayName = "AEGIS MRA"
 
 # Deteksi lokasi Desktop yang sebenarnya (Mendukung OneDrive)
 $desktopPath = [Environment]::GetFolderPath("Desktop")
