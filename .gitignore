@@ -1,0 +1,20 @@
+# Next.js
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env.local
+
+# Flutter
+agent_desktop/build/
+agent_desktop/.dart_tool/
+agent_desktop/.packages
+agent_desktop/.flutter-plugins
+agent_desktop/.flutter-plugins-dependencies
+
+# Python
+__pycache__/
+*.pyc
+agent/*.exe
+
+# OS
+.DS_Store
+Thumbs.db
