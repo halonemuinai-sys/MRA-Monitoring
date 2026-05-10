@@ -217,6 +217,30 @@ class _InstallerScreenState extends State<InstallerScreen> with WindowListener {
                       ),
                       child: const Text("Install & Start Monitoring", style: TextStyle(fontWeight: FontWeight.bold)),
                     )
+                  else if (statusText == "Monitoring Active")
+                    Column(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.greenAccent, size: 48),
+                        const SizedBox(height: 16),
+                        const Text("System is Protected", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 32),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            setState(() => statusText = "Syncing...");
+                            await MonitoringService.syncData();
+                            setState(() => statusText = "Monitoring Active");
+                          },
+                          icon: const Icon(Icons.sync, size: 18),
+                          label: const Text("Sync Now"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blueAccent,
+                            side: const BorderSide(color: Colors.blueAccent),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleAtBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    )
                   else
                     Column(
                       children: [

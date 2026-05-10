@@ -12,87 +12,84 @@ class MonitoringService {
       var result = await Process.run('powershell', ['-Command', command]);
       return result.stdout.toString().trim();
     } catch (e) {
+      debugPrint("PS Error ($command): $e");
       return "";
     }
   }
 
   static Future<Map<String, dynamic>> getSystemSpecs() async {
+    Map<String, dynamic> data = {
+      "hostname": Platform.localHostname,
+      "timestamp": DateTime.now().toIso8601String(),
+    };
+
     try {
-      // 1. Storage Info (C: Drive) - Gunakan PowerShell agar lebih presisi
-      String diskJson = await runPowerShell(
-        'Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'" | Select-Object Size, FreeSpace | ConvertTo-Json'
-      );
-      var diskData = jsonDecode(diskJson);
-      int diskTotal = (diskData['Size'] as int) ~/ (1024 * 1024 * 1024);
-      int diskFree = (diskData['FreeSpace'] as int) ~/ (1024 * 1024 * 1024);
+      // 1. Serial Number (WMIC)
+      String sn = await runPowerShell('(Get-CimInstance Win32_BIOS).SerialNumber');
+      data["serialNumber"] = sn.isEmpty ? "Unknown-SN" : sn;
+      debugPrint("SN: $sn");
 
-      // 2. Battery Wear Level
-      String batteryWear = await runPowerShell(
-        '\$b = Get-CimInstance Win32_Battery; if (\$b.DesignCapacity -gt 0) { [math]::Round((1 - (\$b.FullChargeCapacity / \$b.DesignCapacity)) * 100, 2) } else { 0 }'
-      );
-      double wearLevel = double.tryParse(batteryWear) ?? 0.0;
+      // 2. System Info
+      data["manufacturer"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Manufacturer');
+      data["model"] = await runPowerShell('(Get-CimInstance Win32_ComputerSystem).Model');
+      data["currentUser"] = await runPowerShell('[System.Security.Principal.WindowsIdentity]::GetCurrent().Name');
+      debugPrint("System: ${data["manufacturer"]} ${data["model"]}");
 
-      // 3. Security Check
-      String avName = await runPowerShell('Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Select-Object -ExpandProperty displayName');
-      if (avName.isEmpty) avName = "Windows Defender";
+      // 3. OS
+      data["os"] = await runPowerShell('(Get-CimInstance Win32_OperatingSystem).Caption');
 
-      String fwEnabled = await runPowerShell('Get-NetFirewallProfile -Profile Domain,Public,Private | Select-Object -ExpandProperty Enabled');
-      bool isFwOn = fwEnabled.contains('1') || fwEnabled.toLowerCase().contains('true');
+      // 4. Hardware (RAM & Disk)
+      try {
+        double ramRaw = double.tryParse(await runPowerShell('(Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum')) ?? 0;
+        data["hardware"] = {
+          "ramGB": (ramRaw / (1024 * 1024 * 1024)).round(),
+        };
 
-      String blStatus = await runPowerShell('Get-BitLockerVolume -MountPoint "C:" | Select-Object -ExpandProperty ProtectionStatus');
-      String bitLocker = blStatus == "1" ? "Encrypted" : "Unprotected";
+        String diskSizeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").Size');
+        String diskFreeStr = await runPowerShell('(Get-CimInstance Win32_LogicalDisk -Filter "DeviceID=\'C:\'").FreeSpace');
+        
+        data["hardware"]["diskTotalGB"] = (double.tryParse(diskSizeStr) ?? 0) ~/ (1024 * 1024 * 1024);
+        data["hardware"]["diskFreeGB"] = (double.tryParse(diskFreeStr) ?? 0) ~/ (1024 * 1024 * 1024);
+        debugPrint("Storage: ${data["hardware"]["diskFreeGB"]} / ${data["hardware"]["diskTotalGB"]}");
+      } catch (e) { debugPrint("HW Error: $e"); }
 
-      // 4. Basic Info
-      var snResult = await Process.run('wmic', ['bios', 'get', 'serialnumber']);
-      String sn = snResult.stdout.toString().trim().split('\n').last.trim();
+      // 5. Security
+      data["security"] = {
+        "antivirus": await runPowerShell('Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct | Select-Object -ExpandProperty displayName'),
+        "firewall": (await runPowerShell('Get-NetFirewallProfile -Profile Domain,Public,Private | Select-Object -ExpandProperty Enabled') == "1") ? "Active" : "Disabled",
+        "bitlocker": (await runPowerShell('Get-BitLockerVolume -MountPoint "C:" | Select-Object -ExpandProperty ProtectionStatus') == "1") ? "Encrypted" : "Unprotected",
+      };
 
-      var sysResult = await Process.run('wmic', ['computersystem', 'get', 'manufacturer,model,username']);
-      var sysLines = sysResult.stdout.toString().trim().split('\n');
-      var sysValues = sysLines.last.trim().split(RegExp(r'\s{2,}'));
+      // 6. Battery
+      String batteryWear = await runPowerShell('\$b = Get-CimInstance Win32_Battery | Select-Object -First 1; if (\$b.DesignCapacity -gt 0) { [math]::Round((1 - (\$b.FullChargeCapacity / \$b.DesignCapacity)) * 100, 2) } else { 0 }');
+      data["battery"] = { "wearLevel": double.tryParse(batteryWear) ?? 0.0 };
 
-      // 5. Public IP
-      String publicIp = "Unknown";
+      // 7. Public IP
       try {
         var ipResponse = await http.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 3));
-        publicIp = ipResponse.body;
-      } catch (_) {}
+        data["network"] = { "publicIp": ipResponse.body };
+      } catch (_) {
+        data["network"] = { "publicIp": "Unknown" };
+      }
 
-      return {
-        "hostname": Platform.localHostname,
-        "currentUser": sysValues.last,
-        "manufacturer": sysValues[0],
-        "model": sysValues.length > 1 ? sysValues[1] : "Unknown",
-        "serialNumber": sn,
-        "os": "Windows ${Platform.operatingSystemVersion}",
-        "security": {
-          "antivirus": avName,
-          "firewall": isFwOn ? "Active" : "Disabled",
-          "bitlocker": bitLocker,
-        },
-        "network": { "publicIp": publicIp },
-        "hardware": {
-          "ramGB": (int.parse(await runPowerShell('(Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum')) / (1024 * 1024 * 1024)).round(),
-          "diskTotalGB": diskTotal,
-          "diskFreeGB": diskFree,
-        },
-        "battery": { "wearLevel": wearLevel },
-        "timestamp": DateTime.now().toIso8601String()
-      };
     } catch (e) {
-      debugPrint("Error gathering specs: $e");
-      return {};
+      debugPrint("Global Error gathering specs: $e");
     }
+
+    return data;
   }
 
   static Future<void> syncData() async {
     final payload = await getSystemSpecs();
-    if (payload.isEmpty) return;
+    debugPrint("Payload: ${jsonEncode(payload)}");
+
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json", "x-api-key": apiKey},
         body: jsonEncode(payload),
       );
+      debugPrint("Sync Response: ${response.statusCode} - ${response.body}");
     } catch (e) {
       debugPrint("Sync failed: $e");
     }
