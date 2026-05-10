@@ -7,7 +7,8 @@ import {
   Zap,
   CheckCircle2,
   AlertTriangle,
-  XCircle
+  XCircle,
+  ArrowUpRight
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ async function getStats() {
     .from('assets_monitoring')
     .select('*');
   
-  if (error || !assets) return { total: 0, critical: 0, warning: 0, healthy: 0 };
+  if (error || !assets) return { total: 0, critical: 0, warning: 0, healthy: 0, totalStorageTB: '0.0' };
   
   const total = assets.length;
   const critical = assets.filter(a => a.bitlocker_status === 'Unprotected' || a.firewall_status === 'Disabled' || a.storage_free_gb < 10).length;
@@ -34,64 +35,79 @@ export default async function OverviewPage() {
   const stats = await getStats();
 
   return (
-    <div className="p-10 space-y-10">
-      <header>
-        <h2 className="text-3xl font-bold text-white">Dashboard Overview</h2>
-        <p className="text-slate-500 mt-1">Real-time status of your IT ecosystem</p>
+    <div className="p-10 space-y-10 max-w-7xl mx-auto">
+      <header className="flex justify-between items-end">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Overview</h2>
+          <p className="text-slate-500 mt-1 font-medium italic">Asset intelligence and fleet health</p>
+        </div>
+        <div className="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider">Live Monitoring</span>
+        </div>
       </header>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard title="Total Fleet" value={stats.total} icon={Database} color="blue" />
-        <StatCard title="Storage Capacity" value={`${stats.totalStorageTB} TB`} icon={Zap} color="purple" />
-        <StatCard title="Healthy Nodes" value={stats.healthy} icon={CheckCircle2} color="green" />
-        <StatCard title="Risk Warnings" value={stats.warning} icon={AlertTriangle} color="yellow" />
-        <StatCard title="Security Breach" value={stats.critical} icon={ShieldAlert} color="red" />
+        <StatCard title="Storage" value={`${stats.totalStorageTB} TB`} icon={Zap} color="purple" />
+        <StatCard title="Healthy" value={stats.healthy} icon={CheckCircle2} color="green" />
+        <StatCard title="Warnings" value={stats.warning} icon={AlertTriangle} color="yellow" />
+        <StatCard title="Security" value={stats.critical} icon={ShieldAlert} color="red" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Health Score Chart Placeholder */}
-        <div className="lg:col-span-2 bg-[#141417] border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
+        {/* Main Chart Card */}
+        <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
-            <h3 className="text-lg font-bold text-white mb-6">Fleet Health Score</h3>
-            <div className="flex items-end gap-2 mb-10">
-              <span className="text-6xl font-black text-white">94%</span>
-              <span className="text-green-500 font-bold mb-2 flex items-center gap-1">
-                <Activity size={16} /> +2.4%
-              </span>
+            <div className="flex justify-between items-start mb-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Fleet Health Index</h3>
+                <p className="text-sm text-slate-400 mt-1">Average stability score across all nodes</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold border border-green-100">
+                <ArrowUpRight size={14} /> +2.4%
+              </div>
+            </div>
+
+            <div className="flex items-end gap-12 mb-10">
+              <span className="text-7xl font-black text-slate-900 tracking-tighter">94%</span>
+              <div className="flex-1 space-y-2 pb-2">
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <span>Current Stability</span>
+                  <span>Target: 98%</span>
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full w-[94%]" />
+                </div>
+              </div>
             </div>
             
             {/* Mock Chart Visualization */}
-            <div className="flex items-end gap-3 h-48">
-              {[
-                { h: 'h-[40%]' },
-                { h: 'h-[70%]' },
-                { h: 'h-[45%]' },
-                { h: 'h-[90%]' },
-                { h: 'h-[65%]' },
-                { h: 'h-[80%]' },
-                { h: 'h-[94%]', active: true },
-              ].map((item, i) => (
+            <div className="flex items-end gap-3 h-40">
+              {[40, 70, 45, 90, 65, 80, 94].map((h, i) => (
                 <div key={i} className="flex-1 group/bar relative">
-                  <div className={`bg-blue-600/20 group-hover/bar:bg-blue-600/40 transition-all rounded-t-lg ${item.h}`} />
-                  {item.active && (
-                    <div className={`absolute inset-0 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] rounded-t-lg ${item.h}`} />
+                  <div 
+                    className={`bg-blue-100 group-hover/bar:bg-blue-200 transition-all rounded-xl w-full h-[${h}%]`}
+                    style={{ height: `${h}%` }}
+                  />
+                  {i === 6 && (
+                    <div className="absolute inset-0 bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.3)] rounded-xl w-full h-[94%]" />
                   )}
                 </div>
               ))}
             </div>
-            <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+            <div className="flex justify-between mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2">
               <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
             </div>
           </div>
-          {/* Decorative background circle */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-all" />
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-50 rounded-full blur-3xl" />
         </div>
 
-        {/* Quick Actions / Notifications */}
-        <div className="bg-[#141417] border border-white/5 rounded-3xl p-8 shadow-2xl">
-          <h3 className="text-lg font-bold text-white mb-6">System Alerts</h3>
-          <div className="space-y-4">
+        {/* Alerts Panel */}
+        <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col">
+          <h3 className="text-xl font-bold text-slate-900 mb-8">System Alerts</h3>
+          <div className="space-y-6 flex-1">
             <AlertItem 
               type="critical" 
               msg="Drive C: is 95% full" 
@@ -108,8 +124,8 @@ export default async function OverviewPage() {
               device="NB-MRA-009" 
             />
           </div>
-          <button className="w-full mt-8 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all text-sm font-bold">
-            View All Notifications
+          <button className="w-full mt-10 py-4 rounded-2xl bg-slate-50 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all text-xs font-bold uppercase tracking-widest border border-slate-100">
+            Audit History
           </button>
         </div>
       </div>
@@ -119,36 +135,41 @@ export default async function OverviewPage() {
 
 function StatCard({ title, value, icon: Icon, color }: any) {
   const colors: any = {
-    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-    green: 'text-green-500 bg-green-500/10 border-green-500/20',
-    yellow: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20',
-    red: 'text-red-500 bg-red-500/10 border-red-500/20',
+    blue: 'text-blue-600 bg-blue-50 border-blue-100',
+    green: 'text-green-600 bg-green-50 border-green-100',
+    yellow: 'text-amber-600 bg-amber-50 border-amber-100',
+    red: 'text-red-600 bg-red-50 border-red-100',
+    purple: 'text-purple-600 bg-purple-50 border-purple-100',
   };
 
   return (
-    <div className="bg-[#141417] border border-white/5 p-8 rounded-3xl shadow-xl hover:border-white/10 transition-all group">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 ${colors[color]}`}>
-        <Icon size={24} />
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 group">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 border ${colors[color]}`}>
+        <Icon size={20} />
       </div>
-      <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">{title}</p>
-      <h3 className="text-4xl font-black text-white">{value}</h3>
+      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">{title}</p>
+      <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{value}</h3>
     </div>
   );
 }
 
 function AlertItem({ type, msg, device }: any) {
-  const icons: any = {
-    critical: <XCircle className="text-red-500" size={18} />,
-    warning: <AlertTriangle className="text-yellow-500" size={18} />,
-    security: <ShieldAlert className="text-blue-500" size={18} />,
+  const themes: any = {
+    critical: { icon: <XCircle size={18} />, color: 'bg-red-50 text-red-600 border-red-100' },
+    warning: { icon: <AlertTriangle size={18} />, color: 'bg-amber-50 text-amber-600 border-amber-100' },
+    security: { icon: <ShieldAlert size={18} />, color: 'bg-blue-50 text-blue-600 border-blue-100' },
   };
 
+  const theme = themes[type];
+
   return (
-    <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-      <div className="mt-0.5">{icons[type]}</div>
+    <div className="flex items-start gap-4 p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-sm transition-all group">
+      <div className={`p-2 rounded-xl border ${theme.color}`}>
+        {theme.icon}
+      </div>
       <div>
-        <p className="text-sm font-bold text-white leading-tight">{msg}</p>
-        <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">{device}</p>
+        <p className="text-sm font-bold text-slate-900 leading-tight">{msg}</p>
+        <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">{device}</p>
       </div>
     </div>
   );
