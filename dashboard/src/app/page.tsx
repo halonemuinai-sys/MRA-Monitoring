@@ -1,138 +1,146 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
-import StorageBar from '@/components/StorageBar';
+import { 
+  Activity, 
+  ShieldAlert, 
+  Database, 
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-async function getAssets() {
-  const { data, error } = await supabase
+async function getStats() {
+  const { data: assets, error } = await supabase
     .from('assets_monitoring')
-    .select('*')
-    .order('last_seen', { ascending: false });
+    .select('*');
   
-  if (error) return [];
-  return data;
+  if (error || !assets) return { total: 0, critical: 0, warning: 0, healthy: 0 };
+  
+  const total = assets.length;
+  const critical = assets.filter(a => a.bitlocker_status === 'Unprotected' || a.firewall_status === 'Disabled' || a.storage_free_gb < 10).length;
+  const warning = assets.filter(a => a.battery_wear_level > 20 || (a.storage_free_gb < 30 && a.storage_free_gb >= 10)).length;
+  const healthy = total - critical - warning;
+
+  return { total, critical, warning, healthy };
 }
 
-export default async function Dashboard() {
-  const assets = await getAssets();
-
-  const totalAssets = assets.length;
-  const critical = assets.filter(a => 
-    a.bitlocker_status === 'Unprotected' || 
-    a.firewall_status === 'Disabled' || 
-    a.storage_free_gb < 10
-  ).length;
+export default async function OverviewPage() {
+  const stats = await getStats();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0b] text-slate-200 p-8 font-sans">
-      <div className="max-w-[1600px] mx-auto">
-        <header className="mb-10 flex justify-between items-end">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent">
-              MRA Asset Intelligence
-            </h1>
-            <p className="text-slate-500 mt-2 italic text-sm">Enterprise Hardware & Security Compliance Dashboard</p>
-          </div>
-          <div className="bg-[#141417] px-6 py-3 rounded-2xl border border-white/5 flex gap-8">
-            <div className="text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Total Fleet</div>
-              <div className="text-xl font-bold text-white">{totalAssets}</div>
+    <div className="p-10 space-y-10">
+      <header>
+        <h2 className="text-3xl font-bold text-white">Dashboard Overview</h2>
+        <p className="text-slate-500 mt-1">Real-time status of your IT ecosystem</p>
+      </header>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Total Fleet" value={stats.total} icon={Database} color="blue" />
+        <StatCard title="Healthy Nodes" value={stats.healthy} icon={CheckCircle2} color="green" />
+        <StatCard title="Risk Warnings" value={stats.warning} icon={AlertTriangle} color="yellow" />
+        <StatCard title="Security Breach" value={stats.critical} icon={ShieldAlert} color="red" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Health Score Chart Placeholder */}
+        <div className="lg:col-span-2 bg-[#141417] border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
+          <div className="relative z-10">
+            <h3 className="text-lg font-bold text-white mb-6">Fleet Health Score</h3>
+            <div className="flex items-end gap-2 mb-10">
+              <span className="text-6xl font-black text-white">94%</span>
+              <span className="text-green-500 font-bold mb-2 flex items-center gap-1">
+                <Activity size={16} /> +2.4%
+              </span>
             </div>
-            <div className="text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Security Risk</div>
-              <div className="text-xl font-bold text-red-500">{critical}</div>
-            </div>
-          </div>
-        </header>
-
-        <div className="bg-[#141417] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-slate-500 text-[10px] uppercase tracking-[0.2em] border-b border-white/5 bg-white/[0.01]">
-                <th className="px-6 py-5 font-bold">Identity & User</th>
-                <th className="px-6 py-5 font-bold">Hardware Specs</th>
-                <th className="px-6 py-5 font-bold">Storage</th>
-                <th className="px-6 py-5 font-bold">Security Compliance</th>
-                <th className="px-6 py-5 font-bold">Location</th>
-                <th className="px-6 py-5 font-bold text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {assets.map((asset) => (
-                <tr key={asset.id} className="hover:bg-white/[0.02] transition-all group">
-                  {/* Identity */}
-                  <td className="px-6 py-6">
-                    <div className="font-black text-white text-base group-hover:text-blue-400 transition-colors">
-                      {asset.hostname}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/20">
-                        {asset.current_user_name?.split('\\').pop() || 'Unknown'}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">{asset.serial_number}</div>
-                    </div>
-                  </td>
-
-                  {/* Hardware */}
-                  <td className="px-6 py-6 text-xs text-slate-400">
-                    <div className="font-bold text-slate-300 mb-1">{asset.manufacturer} {asset.model}</div>
-                    <div>{asset.cpu_type.split(' ')[0]} | {asset.ram_gb}GB RAM</div>
-                  </td>
-
-                  {/* Storage */}
-                  <td className="px-6 py-6">
-                    <div className="text-xs font-mono text-white mb-1.5">{asset.storage_free_gb} / {asset.storage_total_gb} GB</div>
-                    <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
-                  </td>
-
-                  {/* Security Compliance */}
-                  <td className="px-6 py-6">
-                    <div className="flex gap-2">
-                      <div title={`AV: ${asset.antivirus_name}`} className={`p-1.5 rounded-lg border ${asset.antivirus_name ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                        <ShieldIcon size={14} />
-                      </div>
-                      <div title={`Firewall: ${asset.firewall_status}`} className={`p-1.5 rounded-lg border ${asset.firewall_status === 'Active' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                        <LockIcon size={14} />
-                      </div>
-                      <div title={`BitLocker: ${asset.bitlocker_status}`} className={`p-1.5 rounded-lg border ${asset.bitlocker_status === 'Encrypted' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                        <KeyIcon size={14} />
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Location */}
-                  <td className="px-6 py-6">
-                    <div className="text-xs font-mono text-slate-300">{asset.public_ip}</div>
-                    <div className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">Public Network</div>
-                  </td>
-
-                  {/* Last Seen */}
-                  <td className="px-6 py-6 text-right">
-                    <div className="text-xs font-bold text-white mb-1">
-                      {new Date(asset.last_seen).toLocaleTimeString()}
-                    </div>
-                    <div className="text-[9px] text-slate-500 uppercase tracking-tighter">
-                      Synced {new Date(asset.last_seen).toLocaleDateString()}
-                    </div>
-                  </td>
-                </tr>
+            
+            {/* Mock Chart Visualization */}
+            <div className="flex items-end gap-3 h-48">
+              {[40, 70, 45, 90, 65, 80, 94].map((h, i) => (
+                <div key={i} className="flex-1 group/bar relative">
+                  <div 
+                    className="bg-blue-600/20 group-hover/bar:bg-blue-600/40 transition-all rounded-t-lg" 
+                    style={{ height: `${h}%` }}
+                  />
+                  {i === 6 && (
+                    <div className="absolute inset-0 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] rounded-t-lg" style={{ height: `${h}%` }} />
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+          </div>
+          {/* Decorative background circle */}
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-all" />
+        </div>
+
+        {/* Quick Actions / Notifications */}
+        <div className="bg-[#141417] border border-white/5 rounded-3xl p-8 shadow-2xl">
+          <h3 className="text-lg font-bold text-white mb-6">System Alerts</h3>
+          <div className="space-y-4">
+            <AlertItem 
+              type="critical" 
+              msg="Drive C: is 95% full" 
+              device="NB-MRA-042" 
+            />
+            <AlertItem 
+              type="warning" 
+              msg="High battery wear (28%)" 
+              device="NB-MRA-115" 
+            />
+            <AlertItem 
+              type="security" 
+              msg="Firewall Disabled" 
+              device="NB-MRA-009" 
+            />
+          </div>
+          <button className="w-full mt-8 py-3 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all text-sm font-bold">
+            View All Notifications
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// Icons Placeholder Components
-const ShieldIcon = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-);
-const LockIcon = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-);
-const KeyIcon = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3m-3-3l-2.5-2.5"/></svg>
-);
+function StatCard({ title, value, icon: Icon, color }: any) {
+  const colors: any = {
+    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+    green: 'text-green-500 bg-green-500/10 border-green-500/20',
+    yellow: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20',
+    red: 'text-red-500 bg-red-500/10 border-red-500/20',
+  };
+
+  return (
+    <div className="bg-[#141417] border border-white/5 p-8 rounded-3xl shadow-xl hover:border-white/10 transition-all group">
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 ${colors[color]}`}>
+        <Icon size={24} />
+      </div>
+      <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">{title}</p>
+      <h3 className="text-4xl font-black text-white">{value}</h3>
+    </div>
+  );
+}
+
+function AlertItem({ type, msg, device }: any) {
+  const icons: any = {
+    critical: <XCircle className="text-red-500" size={18} />,
+    warning: <AlertTriangle className="text-yellow-500" size={18} />,
+    security: <ShieldAlert className="text-blue-500" size={18} />,
+  };
+
+  return (
+    <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+      <div className="mt-0.5">{icons[type]}</div>
+      <div>
+        <p className="text-sm font-bold text-white leading-tight">{msg}</p>
+        <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">{device}</p>
+      </div>
+    </div>
+  );
+}

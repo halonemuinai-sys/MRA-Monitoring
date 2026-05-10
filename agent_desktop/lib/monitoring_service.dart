@@ -38,7 +38,7 @@ class MonitoringService {
       // 3. OS, CPU & GPU
       data["os"] = await runPowerShell('(Get-CimInstance Win32_OperatingSystem).Caption');
       data["cpu"] = await runPowerShell('(Get-CimInstance Win32_Processor).Name');
-      data["gpu"] = await runPowerShell('(Get-CimInstance Win32_VideoController).Name');
+      data["gpu"] = await runPowerShell('(Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join " / "');
       debugPrint("CPU: ${data["cpu"]} | GPU: ${data["gpu"]}");
 
       // 4. Hardware (RAM & Disk)
