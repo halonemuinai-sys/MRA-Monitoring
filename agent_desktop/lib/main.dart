@@ -168,17 +168,24 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
               alignment: Alignment.center,
               children: [
                 Container(
-                  width: 120,
-                  height: 120,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue.withAlpha(15),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(20),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ),
-                Icon(
-                  Icons.security_rounded,
-                  size: 60,
-                  color: _isSyncing ? Colors.blue : Colors.greenAccent,
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    'assets/logoITshied.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ],
             ),

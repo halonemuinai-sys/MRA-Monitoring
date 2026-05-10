@@ -47,8 +47,8 @@ export default function Sidebar() {
       {/* Brand Section */}
       <div className="p-8 mb-2">
         <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-blue-600 rounded-2xl shadow-lg shadow-blue-600/30">
-            <Cpu size={24} className="text-white" />
+          <div className="w-11 h-11 rounded-2xl bg-white shadow-lg shadow-slate-200 border border-slate-100 flex items-center justify-center overflow-hidden p-1">
+            <img src="/logo.png" alt="MRA Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">MRA Monitor</h1>
