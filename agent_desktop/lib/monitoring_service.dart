@@ -35,8 +35,11 @@ class MonitoringService {
       data["currentUser"] = await runPowerShell('[System.Security.Principal.WindowsIdentity]::GetCurrent().Name');
       debugPrint("System: ${data["manufacturer"]} ${data["model"]}");
 
-      // 3. OS
+      // 3. OS, CPU & GPU
       data["os"] = await runPowerShell('(Get-CimInstance Win32_OperatingSystem).Caption');
+      data["cpu"] = await runPowerShell('(Get-CimInstance Win32_Processor).Name');
+      data["gpu"] = await runPowerShell('(Get-CimInstance Win32_VideoController).Name');
+      debugPrint("CPU: ${data["cpu"]} | GPU: ${data["gpu"]}");
 
       // 4. Hardware (RAM & Disk)
       try {

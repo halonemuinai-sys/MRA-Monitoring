@@ -18,6 +18,8 @@ export async function POST(request: Request) {
       manufacturer: payload.manufacturer,
       model: payload.model,
       os_version: payload.os,
+      cpu_type: payload.cpu,
+      gpu_type: payload.gpu,
       last_boot_time: payload.lastBoot,
       
       // Hardware
