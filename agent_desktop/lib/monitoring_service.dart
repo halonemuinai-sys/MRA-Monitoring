@@ -58,12 +58,16 @@ class MonitoringService {
       ''');
       data["battery"] = { "wearLevel": double.tryParse(batteryWear) ?? 0.0 };
 
-      // 4. Installed Apps (BARU)
+      // 4. Installed Apps (Filtered for meaningful apps)
       String appsJson = await runPowerShell('''
         Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*, HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | 
-        Where-Object { \$_.DisplayName -ne \$null } | 
+        Where-Object { 
+          \$_.DisplayName -ne \$null -and 
+          \$_.SystemComponent -ne 1 -and 
+          \$_.DisplayName -notmatch "Update|Redistributable|Driver|Security|Language Pack"
+        } | 
         Select-Object DisplayName, DisplayVersion | 
-        Sort-Object DisplayName | 
+        Sort-Object DisplayName -Unique | 
         ConvertTo-Json -Compress
       ''');
       try {
