@@ -1,18 +1,16 @@
 import React from 'react';
 import { supabase } from '@/lib/supabase';
 import StorageBar from '@/components/StorageBar';
-import AppListModal from '@/components/AppListModal';
 import { 
   Shield, 
   Lock, 
   Key, 
   Search, 
   Monitor,
-  User,
-  Cpu,
   Globe,
   MoreVertical,
-  Filter
+  Filter,
+  Package
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +18,7 @@ export const dynamic = 'force-dynamic';
 async function getAssets() {
   const { data, error } = await supabase
     .from('assets_monitoring')
-    .select('*, asset_installed_apps(count)')
+    .select('*')
     .order('last_seen', { ascending: false });
   
   if (error) return [];
@@ -35,7 +33,7 @@ export default async function AssetsPage() {
       <header className="flex justify-between items-end">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight">Assets Inventory</h2>
-          <p className="text-slate-500 mt-1 font-medium italic">Detailed hardware and security compliance list</p>
+          <p className="text-slate-500 mt-1 font-medium italic">Hardware health and system compliance</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -61,7 +59,7 @@ export default async function AssetsPage() {
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity & User</th>
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardware Details</th>
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage Health</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security Compliance</th>
+              <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security & Apps</th>
               <th className="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest">Network</th>
               <th className="px-8 py-5"></th>
             </tr>
@@ -109,12 +107,13 @@ export default async function AssetsPage() {
                     <ComplianceBadge icon={Lock} active={asset.firewall_status === 'Active'} label="FW" />
                     <ComplianceBadge icon={Key} active={asset.bitlocker_status === 'Encrypted'} label="BL" />
                   </div>
-                  <div className="mt-3">
-                    <AppListModal 
-                      assetId={asset.id} 
-                      hostname={asset.hostname} 
-                      appCount={asset.asset_installed_apps?.[0]?.count || 0} 
-                    />
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="p-1.5 bg-slate-100 rounded-lg text-slate-400">
+                      <Package size={12} />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {asset.apps_count || 0} Apps Installed
+                    </span>
                   </div>
                 </td>
 

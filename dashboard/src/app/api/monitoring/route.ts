@@ -10,7 +10,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. Upsert data asset utama
+    // Hitung total aplikasi dari payload
+    const appsCount = payload.installed_apps?.length || 0;
+
+    // Update data asset utama termasuk apps_count
     const { data: asset, error: assetError } = await supabase
       .from('assets_monitoring')
       .upsert({
@@ -32,14 +35,16 @@ export async function POST(request: Request) {
         antivirus_name: payload.security?.antivirus,
         firewall_status: payload.security?.firewall,
         bitlocker_status: payload.security?.bitlocker,
+        battery_wear_level: payload.battery?.wearLevel,
         
-        // Network
+        // Network & Location
         public_ip: payload.network?.publicIp,
-
-        // Location
         location_city: payload.location?.city,
         location_region: payload.location?.region,
         location_country: payload.location?.country,
+
+        // Apps Count (Sederhana & Cepat)
+        apps_count: appsCount,
         
         last_seen: new Date().toISOString(),
         full_payload: payload
@@ -49,32 +54,9 @@ export async function POST(request: Request) {
 
     if (assetError) throw assetError;
 
-    // 2. Jika ada daftar aplikasi, simpan ke tabel terpisah
-    if (payload.installed_apps && Array.isArray(payload.installed_apps) && asset) {
-      // Hapus data aplikasi lama untuk asset ini (Full Snapshot Refresh)
-      await supabase
-        .from('asset_installed_apps')
-        .delete()
-        .eq('asset_id', asset.id);
-
-      // Siapkan data aplikasi untuk di-insert massal
-      const appsToInsert = payload.installed_apps.map((app: any) => ({
-        asset_id: asset.id,
-        app_name: app.DisplayName || 'Unknown App',
-        app_version: app.DisplayVersion || 'N/A'
-      }));
-
-      // Insert massal (bulk insert) untuk performa tinggi
-      if (appsToInsert.length > 0) {
-        const { error: appsError } = await supabase
-          .from('asset_installed_apps')
-          .insert(appsToInsert);
-        
-        if (appsError) debugPrint("Error inserting apps: " + appsError.message);
-      }
-    }
-
-    return NextResponse.json({ success: true, message: `Sync complete for ${payload.hostname}` });
+    // Note: Kita berhenti menyimpan ke tabel asset_installed_apps untuk optimasi load
+    
+    return NextResponse.json({ success: true, message: `Sync complete for ${payload.hostname} with ${appsCount} apps` });
   } catch (error: any) {
     console.error('Monitoring API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
