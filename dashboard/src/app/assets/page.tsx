@@ -13,7 +13,8 @@ import {
   Filter,
   Package,
   Cpu as CpuIcon,
-  HardDrive
+  HardDrive,
+  Info
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ export default async function AssetsPage() {
   const assets = await getAssets();
 
   return (
-    <div className="p-10 space-y-10 max-w-full mx-auto">
+    <div className="p-10 space-y-10 w-full max-w-[1600px] mx-auto">
       <header className="flex justify-between items-end px-4">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight">Assets Inventory</h2>
@@ -55,14 +56,15 @@ export default async function AssetsPage() {
       </header>
 
       {/* Table Section */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden mx-4">
-        <table className="w-full border-collapse text-left">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-x-auto mx-4">
+        <table className="w-full border-collapse text-left min-w-[1300px]">
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-100">
               <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identity & User</th>
               <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Classification</th>
-              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">System & Hardware</th>
-              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage Health</th>
+              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">System & Model</th>
+              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Specifications</th>
+              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Storage</th>
               <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Compliance</th>
               <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Network</th>
               <th className="px-6 py-5"></th>
@@ -99,43 +101,53 @@ export default async function AssetsPage() {
                   />
                 </td>
 
-                {/* 3. System & Hardware Details */}
+                {/* 3. System & Model */}
                 <td className="px-6 py-7">
-                  <div className="space-y-2 max-w-[220px]">
-                    {/* OS Version */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <p className="text-[11px] font-bold text-slate-800 truncate" title={asset.os_version}>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 bg-blue-50/50 px-2 py-1 rounded-lg border border-blue-100/50 w-fit">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                      <p className="text-[11px] font-black text-blue-700 truncate max-w-[150px]">
                         {asset.os_version}
                       </p>
                     </div>
-                    
-                    {/* CPU & RAM */}
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <CpuIcon size={12} className="shrink-0" />
-                      <p className="text-[10px] font-bold uppercase tracking-tight truncate">
-                        {asset.cpu_type} • {asset.ram_gb}GB
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">
+                        {asset.manufacturer}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-bold truncate max-w-[150px]">
+                        {asset.model}
                       </p>
                     </div>
-
-                    {/* GPU */}
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <div className="w-3 h-3 flex items-center justify-center border border-slate-200 rounded-[3px]">
-                        <span className="text-[7px] font-black italic">G</span>
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest truncate">
-                        {asset.gpu_type || 'Integrated Graphics'}
-                      </p>
-                    </div>
-
-                    {/* Manufacturer & Model */}
-                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
-                      {asset.manufacturer} / {asset.model}
-                    </p>
                   </div>
                 </td>
 
-                {/* 4. Storage Health */}
+                {/* 4. Specifications */}
+                <td className="px-6 py-7">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <CpuIcon size={14} className="text-slate-400" />
+                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-tight truncate max-w-[140px]">
+                        {asset.cpu_type}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 flex items-center justify-center border-2 border-slate-200 rounded bg-slate-50">
+                        <span className="text-[8px] font-black text-slate-400">G</span>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[140px]">
+                        {asset.gpu_type || 'Integrated'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Info size={12} className="text-blue-400" />
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                        {asset.ram_gb}GB RAM DDR
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                {/* 5. Storage */}
                 <td className="px-6 py-7">
                   <div className="flex flex-col gap-2.5 min-w-[140px]">
                     <div className="flex items-center gap-2">
@@ -145,13 +157,13 @@ export default async function AssetsPage() {
                       </span>
                     </div>
                     <StorageBar free={asset.storage_free_gb} total={asset.storage_total_gb} />
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                      {( (asset.storage_free_gb / asset.storage_total_gb) * 100 ).toFixed(0)}% Free Space
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                      {( (asset.storage_free_gb / asset.storage_total_gb) * 100 ).toFixed(0)}% Available
                     </p>
                   </div>
                 </td>
 
-                {/* 5. Compliance */}
+                {/* 6. Compliance */}
                 <td className="px-6 py-7">
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
@@ -160,32 +172,28 @@ export default async function AssetsPage() {
                       <ComplianceBadge icon={Key} active={asset.bitlocker_status === 'Encrypted'} label="BL" />
                     </div>
                     <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg w-fit border border-slate-100">
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        {asset.apps_count || 0} Apps Installed
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {asset.apps_count || 0} Apps
                       </span>
                     </div>
                   </div>
                 </td>
 
-                {/* 6. Network */}
+                {/* 7. Network */}
                 <td className="px-6 py-7">
                   <div className="space-y-2">
-                    <p className="text-[11px] font-bold text-slate-900 font-mono tracking-tighter bg-blue-50 px-2 py-1 rounded w-fit border border-blue-100/50">
+                    <p className="text-[10px] font-bold text-slate-900 font-mono tracking-tighter bg-blue-50 px-2 py-1 rounded w-fit border border-blue-100/50">
                       {asset.public_ip}
                     </p>
-                    <div className="flex items-center gap-1.5 px-1">
+                    <div className="flex items-center gap-1.5">
                       <Globe size={11} className="text-blue-500" />
                       <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">
                         {asset.location_city || 'Unknown'}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5 px-1">
-                      <div className="w-1 h-1 rounded-full bg-slate-300" />
-                      <p className="text-[9px] text-slate-400 uppercase font-bold tracking-[0.1em]">
-                        Sync: {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
+                    <p className="text-[9px] text-slate-300 uppercase font-bold tracking-[0.1em]">
+                      {new Date(asset.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </td>
 
